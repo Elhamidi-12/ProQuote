@@ -63,7 +63,7 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
 
-        // Configure cookie authentication to use our custom login page
+        // Configure cookie authentication paths
         services.ConfigureApplicationCookie(options =>
         {
             options.LoginPath = "/login";
