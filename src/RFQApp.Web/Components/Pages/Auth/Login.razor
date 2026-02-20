@@ -1,4 +1,5 @@
 @page "/login"
+@rendermode InteractiveServer
 @inject IAuthService AuthService
 @inject CustomAuthStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
@@ -15,7 +16,7 @@
                 <MudText Typo="Typo.body2" Color="Color.Secondary">Sign in to your account</MudText>
             </div>
 
-            <EditForm Model="_loginRequest" OnValidSubmit="HandleLoginAsync">
+            <EditForm Model="_loginRequest" OnValidSubmit="HandleLoginAsync" FormName="loginForm">
                 <DataAnnotationsValidator />
 
                 <MudTextField @bind-Value="_loginRequest.Email"
