@@ -1,11 +1,25 @@
+using Microsoft.AspNetCore.Components.Authorization;
+
+using MudBlazor.Services;
+
 using RFQApp.Infrastructure;
 using RFQApp.Infrastructure.Data;
+using RFQApp.Web.Auth;
 using RFQApp.Web.Components;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-// Add Infrastructure services (EF Core, Identity, Repositories)
+// Add Infrastructure services (EF Core, Identity, Repositories, Auth)
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Add MudBlazor
+builder.Services.AddMudServices();
+
+// Add Authentication State Provider
+builder.Services.AddScoped<CustomAuthStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
+builder.Services.AddAuthorizationCore();
+builder.Services.AddCascadingAuthenticationState();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

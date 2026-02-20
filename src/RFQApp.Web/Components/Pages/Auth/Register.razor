@@ -1,0 +1,159 @@
+@page "/register"
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Register - RFQ App</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8 mb-8">
+    <MudPaper Elevation="3" Class="pa-8">
+        <MudStack Spacing="4">
+            <div class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" Size="Size.Large" Style="font-size: 3rem;" />
+                <MudText Typo="Typo.h4" Class="mt-2">Create Buyer Account</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Register to create and manage RFQs</MudText>
+            </div>
+
+            <EditForm Model="_registerRequest" OnValidSubmit="HandleRegisterAsync">
+                <DataAnnotationsValidator />
+
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_registerRequest.FirstName"
+                                      Label="First Name"
+                                      Variant="Variant.Outlined"
+                                      For="@(() => _registerRequest.FirstName)"
+                                      Disabled="_isLoading" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_registerRequest.LastName"
+                                      Label="Last Name"
+                                      Variant="Variant.Outlined"
+                                      For="@(() => _registerRequest.LastName)"
+                                      Disabled="_isLoading" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudTextField @bind-Value="_registerRequest.Email"
+                              Label="Email"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Email"
+                              For="@(() => _registerRequest.Email)"
+                              Class="mt-4"
+                              Disabled="_isLoading" />
+
+                <MudTextField @bind-Value="_registerRequest.PhoneNumber"
+                              Label="Phone Number (Optional)"
+                              Variant="Variant.Outlined"
+                              For="@(() => _registerRequest.PhoneNumber)"
+                              Class="mt-4"
+                              Disabled="_isLoading" />
+
+                <MudTextField @bind-Value="_registerRequest.Password"
+                              Label="Password"
+                              Variant="Variant.Outlined"
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              For="@(() => _registerRequest.Password)"
+                              Class="mt-4"
+                              Disabled="_isLoading"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                              OnAdornmentClick="@(() => _showPassword = !_showPassword)"
+                              HelperText="Min 8 characters, include uppercase, lowercase, number, and special character" />
+
+                <MudTextField @bind-Value="_registerRequest.ConfirmPassword"
+                              Label="Confirm Password"
+                              Variant="Variant.Outlined"
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              For="@(() => _registerRequest.ConfirmPassword)"
+                              Class="mt-4"
+                              Disabled="_isLoading" />
+
+                @if (_errors.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">
+                        <ul class="mb-0">
+                            @foreach (string error in _errors)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    </MudAlert>
+                }
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Disabled="_isLoading"
+                           Class="mt-6">
+                    @if (_isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Creating Account...</span>
+                    }
+                    else
+                    {
+                        <span>Create Account</span>
+                    }
+                </MudButton>
+            </EditForm>
+
+            <MudDivider />
+
+            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
+                <MudText Typo="Typo.body2">Already have an account?</MudText>
+                <MudLink Href="/login" Typo="Typo.body2">Sign In</MudLink>
+            </MudStack>
+
+            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
+                <MudText Typo="Typo.body2">Are you a supplier?</MudText>
+                <MudLink Href="/register/supplier" Typo="Typo.body2">Register as Supplier</MudLink>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    #region Fields
+
+    private RegisterRequest _registerRequest = new();
+    private bool _isLoading;
+    private bool _showPassword;
+    private List<string> _errors = [];
+
+    #endregion
+
+    #region Methods
+
+    private async Task HandleRegisterAsync()
+    {
+        _isLoading = true;
+        _errors.Clear();
+
+        try
+        {
+            AuthResponse response = await AuthService.RegisterBuyerAsync(_registerRequest);
+
+            if (response.Succeeded)
+            {
+                Snackbar.Add("Account created successfully! Please sign in.", Severity.Success);
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                _errors = response.Errors.Count > 0 ? response.Errors : [response.ErrorMessage ?? "Registration failed."];
+            }
+        }
+        catch (Exception ex)
+        {
+            _errors = [$"An unexpected error occurred: {ex.Message}"];
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    #endregion
+}

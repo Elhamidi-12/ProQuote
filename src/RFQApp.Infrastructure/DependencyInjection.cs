@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
+using RFQApp.Application.Common;
 using RFQApp.Application.Interfaces;
 using RFQApp.Infrastructure.Data;
 using RFQApp.Infrastructure.Identity;
 using RFQApp.Infrastructure.Repositories;
+using RFQApp.Infrastructure.Services;
 
 namespace RFQApp.Infrastructure;
 
@@ -30,6 +32,9 @@ public static class DependencyInjection
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection"),
                 b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+
+        // Add JWT Settings
+        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 
         // Add Identity
         services.AddIdentity<ApplicationUserIdentity, ApplicationRoleIdentity>(options =>
@@ -67,6 +72,9 @@ public static class DependencyInjection
 
         // Add Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Add Services
+        services.AddScoped<IAuthService, AuthService>();
 
         // Add Database Seeder
         services.AddScoped<AppDbSeeder>();

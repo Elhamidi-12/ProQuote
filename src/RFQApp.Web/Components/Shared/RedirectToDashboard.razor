@@ -1,0 +1,32 @@
+@inject NavigationManager NavigationManager
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthState;
+        System.Security.Claims.ClaimsPrincipal user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            string redirectUrl = "/";
+
+            if (user.IsInRole(ApplicationRoles.Admin))
+            {
+                redirectUrl = "/admin/dashboard";
+            }
+            else if (user.IsInRole(ApplicationRoles.Supplier))
+            {
+                redirectUrl = "/supplier/dashboard";
+            }
+            else if (user.IsInRole(ApplicationRoles.Buyer))
+            {
+                redirectUrl = "/buyer/dashboard";
+            }
+
+            NavigationManager.NavigateTo(redirectUrl, forceLoad: false);
+        }
+    }
+}
