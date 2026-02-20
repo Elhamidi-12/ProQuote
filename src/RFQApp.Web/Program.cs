@@ -1,12 +1,24 @@
+using RFQApp.Infrastructure;
+using RFQApp.Infrastructure.Data;
 using RFQApp.Web.Components;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// Add Infrastructure services (EF Core, Identity, Repositories)
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
+
+// Seed the database
+using (IServiceScope scope = app.Services.CreateScope())
+{
+    AppDbSeeder seeder = scope.ServiceProvider.GetRequiredService<AppDbSeeder>();
+    await seeder.SeedAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
