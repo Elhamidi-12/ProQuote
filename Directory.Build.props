@@ -24,6 +24,10 @@
     
     <!-- Latest C# language version -->
     <LangVersion>latest</LangVersion>
+
+    <!-- Suppress specific warnings -->
+    <!-- CA2227: Collection properties should be read only - suppressed for EF Core navigation properties -->
+    <NoWarn>$(NoWarn);CA2227</NoWarn>
   </PropertyGroup>
 
   <!-- Suppress XML doc warnings for test projects -->
