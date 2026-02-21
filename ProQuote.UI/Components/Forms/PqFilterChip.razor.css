@@ -1,0 +1,3 @@
+.pq-filter-chip { height: var(--pq-input-height-sm); padding: 0 var(--pq-space-3); border-radius: var(--pq-radius-full); border: 1px solid var(--pq-border); background: var(--pq-bg-surface); color: var(--pq-text-secondary); font-size: var(--pq-text-sm); cursor: pointer; display: inline-flex; align-items: center; gap: var(--pq-space-2); }
+.pq-filter-chip--active { background: var(--pq-primary-100); border-color: var(--pq-primary-300); color: var(--pq-primary-800); font-weight: var(--pq-font-medium); }
+.pq-filter-chip__count { font-size: var(--pq-text-xs); }

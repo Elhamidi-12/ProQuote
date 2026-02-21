@@ -1,0 +1,23 @@
+<nav class="pq-breadcrumb" aria-label="Breadcrumb">
+    @if (Items is not null)
+    {
+        @for (int i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            bool isLast = i == Items.Count - 1;
+            @if (!isLast && !string.IsNullOrWhiteSpace(item.Href))
+            {
+                <a href="@item.Href" class="pq-breadcrumb__link">@item.Label</a>
+            }
+            else
+            {
+                <span class="pq-breadcrumb__current">@item.Label</span>
+            }
+            @if (!isLast) { <span class="pq-breadcrumb__sep">/</span> }
+        }
+    }
+</nav>
+@code {
+    public sealed class BreadcrumbItem { public string Label { get; set; } = string.Empty; public string? Href { get; set; } }
+    [Parameter] public List<BreadcrumbItem>? Items { get; set; }
+}

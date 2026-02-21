@@ -1,0 +1,138 @@
+@page "/showcase"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>ProQuote UI Showcase</PageTitle>
+
+<div class="pq-flex pq-flex-col pq-gap-6">
+    <h1 class="pq-page-title">ProQuote UI Showcase</h1>
+
+    <PqCard>
+        <h2 class="pq-section-title">Buttons</h2>
+        <div class="pq-flex pq-gap-2" style="margin-top:var(--pq-space-3); flex-wrap:wrap;">
+            <PqButton Variant="primary">Primary</PqButton>
+            <PqButton Variant="secondary">Secondary</PqButton>
+            <PqButton Variant="danger">Danger</PqButton>
+            <PqButton Variant="ghost">Ghost</PqButton>
+            <PqButton Variant="link">Link</PqButton>
+            <PqButton Variant="primary" Loading="true">Loading</PqButton>
+        </div>
+    </PqCard>
+
+    <PqCard>
+        <h2 class="pq-section-title">Badge + Avatar + Progress</h2>
+        <div class="pq-flex pq-gap-3" style="margin-top:var(--pq-space-3); align-items:center; flex-wrap:wrap;">
+            <PqBadge Variant="published">Published</PqBadge>
+            <PqBadge Variant="awarded" Dot="true">Awarded</PqBadge>
+            <PqAvatar Name="John Buyer" Size="md" Online="true" />
+            <div style="width:240px;"><PqProgressBar Value="67" Variant="success" ShowLabel="true" /></div>
+        </div>
+    </PqCard>
+
+    <PqCard>
+        <h2 class="pq-section-title">Inputs</h2>
+        <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3); max-width:420px;">
+            <PqInput Label="Title" Placeholder="RFQ title" Value="@_title" ValueChanged="@(v => _title = v)" Required="true" Hint="Enter clear title" />
+            <PqSelect Label="Category" Value="@_category" ValueChanged="@(v => _category = v)" Options="_options" Placeholder="Select category" />
+            <PqTextarea Label="Description" Value="@_description" ValueChanged="@(v => _description = v)" />
+            <PqSearchBar Value="@_search" ValueChanged="@(v => _search = v)" />
+        </div>
+    </PqCard>
+
+    <PqCard>
+        <h2 class="pq-section-title">Table + Tabs + Pagination</h2>
+        <PqTabs Items="_tabs" ActiveTab="@_activeTab" ActiveTabChanged="@(v => _activeTab = v)" />
+        <div style="margin-top:var(--pq-space-3);">
+            <PqTable Headers="_headers" EmptyText="No rows yet">
+                <tr><td>RFQ-2026-0001</td><td>Office Chairs</td><td><PqBadge Variant="draft">Draft</PqBadge></td></tr>
+                <tr><td>RFQ-2026-0002</td><td>Laptops</td><td><PqBadge Variant="published">Published</PqBadge></td></tr>
+            </PqTable>
+        </div>
+        <div style="margin-top:var(--pq-space-3);">
+            <PqPagination CurrentPage="@_page" CurrentPageChanged="@(v => _page = v)" TotalPages="7" TotalItems="134" PageSize="20" />
+        </div>
+    </PqCard>
+
+    <PqCard>
+        <h2 class="pq-section-title">Feedback</h2>
+        <div class="pq-flex pq-gap-2" style="margin-top:var(--pq-space-3);">
+            <PqButton Variant="primary" OnClick="OpenModal">Open Modal</PqButton>
+            <PqButton Variant="secondary" OnClick="ShowToast">Show Toast</PqButton>
+        </div>
+        <PqModal @bind-IsOpen="_modalOpen" Title="Confirm Award" Size="md">
+            <ChildContent>
+                <p class="pq-body">Are you sure you want to award this RFQ?</p>
+            </ChildContent>
+            <Footer>
+                <PqButton Variant="ghost" OnClick="CloseModal">Cancel</PqButton>
+                <PqButton Variant="primary" OnClick="CloseModal">Confirm</PqButton>
+            </Footer>
+        </PqModal>
+    </PqCard>
+
+    <PqCard>
+        <h2 class="pq-section-title">Empty + Skeleton + Breadcrumb</h2>
+        <PqBreadcrumb Items="_crumbs" />
+        <div style="margin-top:var(--pq-space-3);">
+            <PqSkeleton Lines="3" Height="12px" />
+        </div>
+        <PqEmptyState Icon="?" Title="No RFQs yet" Description="Create your first RFQ to get started." ActionLabel="Create RFQ" OnAction="Noop" />
+    </PqCard>
+
+    <PqCard>
+        <h2 class="pq-section-title">Form Field + Filter Chip + File Upload</h2>
+        <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3); max-width:420px;">
+            <PqFormField Label="Budget" Hint="USD">
+                <PqInput Value="10000" Type="number" />
+            </PqFormField>
+            <PqFilterChip Label="Published" Active="@_chipActive" ActiveChanged="@(v => _chipActive = v)" Count="12" />
+            <PqFileUpload Label="Attach spec" OnChange="NoopFile" />
+        </div>
+    </PqCard>
+</div>
+
+@code {
+    [Inject] private ToastService ToastService { get; set; } = default!;
+
+    private string? _title;
+    private string? _category;
+    private string? _description;
+    private string? _search;
+    private string? _activeTab = "all";
+    private int _page = 1;
+    private bool _modalOpen;
+    private bool _chipActive;
+
+    private readonly IReadOnlyList<PqSelect.SelectOption> _options =
+    [
+        new() { Value = "it", Label = "IT & Technology" },
+        new() { Value = "office", Label = "Office Supplies" }
+    ];
+
+    private readonly List<PqTabs.TabItem> _tabs =
+    [
+        new() { Label = "All", Value = "all", Count = 24 },
+        new() { Label = "Draft", Value = "draft", Count = 8 },
+        new() { Label = "Published", Value = "published", Count = 16 }
+    ];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Reference", Field = "ref", Sortable = true },
+        new() { Label = "Title", Field = "title", Sortable = true },
+        new() { Label = "Status", Field = "status", Sortable = true }
+    ];
+
+    private readonly List<PqBreadcrumb.BreadcrumbItem> _crumbs =
+    [
+        new() { Label = "Home", Href = "/" },
+        new() { Label = "UI", Href = "/showcase" },
+        new() { Label = "Showcase" }
+    ];
+
+    private Task OpenModal() { _modalOpen = true; return Task.CompletedTask; }
+    private Task CloseModal() { _modalOpen = false; return Task.CompletedTask; }
+    private Task ShowToast() { ToastService.ShowSuccess("Component library is wired.", "ProQuote.UI"); return Task.CompletedTask; }
+    private Task Noop() => Task.CompletedTask;
+    private Task NoopFile(InputFileChangeEventArgs _) => Task.CompletedTask;
+}

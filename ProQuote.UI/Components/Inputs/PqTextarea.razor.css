@@ -1,0 +1,6 @@
+.pq-textarea-field { display: flex; flex-direction: column; }
+.pq-textarea-field__label { font-size: var(--pq-text-sm); font-weight: var(--pq-font-medium); color: var(--pq-text-primary); margin-bottom: var(--pq-space-1); }
+.pq-textarea-field__input { min-height: var(--pq-space-16); padding: var(--pq-space-3); border: 1px solid var(--pq-border); border-radius: var(--pq-radius-md); background: var(--pq-bg-surface); color: var(--pq-text-primary); resize: vertical; }
+.pq-textarea-field__input:focus-visible { outline: none; border-color: var(--pq-border-focus); box-shadow: var(--pq-shadow-focus); }
+.pq-textarea-field__error { margin-top: var(--pq-space-1); font-size: var(--pq-text-xs); color: var(--pq-danger-text); }
+.pq-textarea-field__hint { margin-top: var(--pq-space-1); font-size: var(--pq-text-xs); color: var(--pq-text-muted); }

@@ -1,0 +1,44 @@
+<PqCard Padding="md" Shadow="sm" Bordered="true">
+    @if (Loading)
+    {
+        <div class="pq-stat-card__loading"></div>
+    }
+    else
+    {
+        <div class="pq-stat-card">
+            <div class="pq-stat-card__content">
+                <div class="pq-stat-card__title">@Title</div>
+                <div class="pq-stat-card__value">@Value</div>
+                @if (!string.IsNullOrWhiteSpace(Trend))
+                {
+                    <div class="pq-stat-card__trend @TrendClass">@Trend</div>
+                }
+            </div>
+            <div class="pq-stat-card__icon" style="--pq-stat-icon-color:@ResolvedIconColor;">
+                @if (!string.IsNullOrWhiteSpace(Icon))
+                {
+                    @((MarkupString)Icon)
+                }
+            </div>
+        </div>
+    }
+</PqCard>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public string? Trend { get; set; }
+    [Parameter] public bool? TrendUp { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? IconColor { get; set; }
+    [Parameter] public bool Loading { get; set; }
+
+    private string TrendClass => TrendUp switch
+    {
+        true => "pq-stat-card__trend--up",
+        false => "pq-stat-card__trend--down",
+        _ => "pq-stat-card__trend--flat"
+    };
+
+    private string ResolvedIconColor => string.IsNullOrWhiteSpace(IconColor) ? "var(--pq-primary-700)" : IconColor;
+}

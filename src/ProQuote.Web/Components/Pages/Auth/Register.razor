@@ -1,144 +1,60 @@
 @page "/register"
+@layout AuthLayout
 @rendermode InteractiveServer
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
-@inject ISnackbar Snackbar
+@inject ToastService ToastService
 
 <PageTitle>Register - ProQuote</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8 mb-8">
-    <MudPaper Elevation="3" Class="pa-8">
-        <MudStack Spacing="4">
-            <div class="text-center">
-                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" Size="Size.Large" Style="font-size: 3rem;" />
-                <MudText Typo="Typo.h4" Class="mt-2">Create Buyer Account</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Register to create and manage RFQs</MudText>
-            </div>
-
-            <EditForm Model="_registerRequest" OnValidSubmit="HandleRegisterAsync" FormName="registerForm">
-                <DataAnnotationsValidator />
-
-                <MudGrid>
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="_registerRequest.FirstName"
-                                      Label="First Name"
-                                      Variant="Variant.Outlined"
-                                      For="@(() => _registerRequest.FirstName)"
-                                      Disabled="_isLoading" />
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="_registerRequest.LastName"
-                                      Label="Last Name"
-                                      Variant="Variant.Outlined"
-                                      For="@(() => _registerRequest.LastName)"
-                                      Disabled="_isLoading" />
-                    </MudItem>
-                </MudGrid>
-
-                <MudTextField @bind-Value="_registerRequest.Email"
-                              Label="Email"
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Email"
-                              For="@(() => _registerRequest.Email)"
-                              Class="mt-4"
-                              Disabled="_isLoading" />
-
-                <MudTextField @bind-Value="_registerRequest.PhoneNumber"
-                              Label="Phone Number (Optional)"
-                              Variant="Variant.Outlined"
-                              For="@(() => _registerRequest.PhoneNumber)"
-                              Class="mt-4"
-                              Disabled="_isLoading" />
-
-                <MudTextField @bind-Value="_registerRequest.Password"
-                              Label="Password"
-                              Variant="Variant.Outlined"
-                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                              For="@(() => _registerRequest.Password)"
-                              Class="mt-4"
-                              Disabled="_isLoading"
-                              Adornment="Adornment.End"
-                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
-                              OnAdornmentClick="@(() => _showPassword = !_showPassword)"
-                              HelperText="Min 8 characters, include uppercase, lowercase, number, and special character" />
-
-                <MudTextField @bind-Value="_registerRequest.ConfirmPassword"
-                              Label="Confirm Password"
-                              Variant="Variant.Outlined"
-                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                              For="@(() => _registerRequest.ConfirmPassword)"
-                              Class="mt-4"
-                              Disabled="_isLoading" />
+<div style="max-width:560px;margin:var(--pq-space-8) auto;">
+    <PqCard>
+        <h1 class="pq-section-title">Create Buyer Account</h1>
+        <EditForm Model="_registerRequest" OnValidSubmit="HandleRegisterAsync" FormName="registerForm">
+            <DataAnnotationsValidator />
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-4);">
+                <PqInput Label="First Name" Value="@_registerRequest.FirstName" ValueChanged="@(v => _registerRequest.FirstName = v ?? string.Empty)" Disabled="_isLoading" />
+                <PqInput Label="Last Name" Value="@_registerRequest.LastName" ValueChanged="@(v => _registerRequest.LastName = v ?? string.Empty)" Disabled="_isLoading" />
+                <PqInput Label="Email" Type="email" Value="@_registerRequest.Email" ValueChanged="@(v => _registerRequest.Email = v ?? string.Empty)" Disabled="_isLoading" />
+                <PqInput Label="Phone Number" Value="@_registerRequest.PhoneNumber" ValueChanged="@(v => _registerRequest.PhoneNumber = v)" Disabled="_isLoading" />
+                <PqInput Label="Password" Type="password" Value="@_registerRequest.Password" ValueChanged="@(v => _registerRequest.Password = v ?? string.Empty)" Disabled="_isLoading" />
+                <PqInput Label="Confirm Password" Type="password" Value="@_registerRequest.ConfirmPassword" ValueChanged="@(v => _registerRequest.ConfirmPassword = v ?? string.Empty)" Disabled="_isLoading" />
 
                 @if (_errors.Count > 0)
                 {
-                    <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">
-                        <ul class="mb-0">
-                            @foreach (string error in _errors)
-                            {
-                                <li>@error</li>
-                            }
-                        </ul>
-                    </MudAlert>
+                    <ul>
+                        @foreach (string error in _errors)
+                        {
+                            <li class="pq-caption" style="color:var(--pq-danger-text)">@error</li>
+                        }
+                    </ul>
                 }
 
-                <MudButton ButtonType="ButtonType.Submit"
-                           Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           FullWidth="true"
-                           Disabled="_isLoading"
-                           Class="mt-6">
-                    @if (_isLoading)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <span>Creating Account...</span>
-                    }
-                    else
-                    {
-                        <span>Create Account</span>
-                    }
-                </MudButton>
-            </EditForm>
-
-            <MudDivider />
-
-            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
-                <MudText Typo="Typo.body2">Already have an account?</MudText>
-                <MudLink Href="/login" Typo="Typo.body2">Sign In</MudLink>
-            </MudStack>
-
-            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
-                <MudText Typo="Typo.body2">Are you a supplier?</MudText>
-                <MudLink Href="/register/supplier" Typo="Typo.body2">Register as Supplier</MudLink>
-            </MudStack>
-        </MudStack>
-    </MudPaper>
-</MudContainer>
+                <PqButton Variant="primary" Type="submit" Loading="_isLoading" FullWidth="true">Create Account</PqButton>
+            </div>
+        </EditForm>
+        <div style="margin-top:var(--pq-space-4);display:flex;gap:var(--pq-space-2);">
+            <a href="/login">Sign In</a>
+            <a href="/register/supplier">Register as Supplier</a>
+        </div>
+    </PqCard>
+</div>
 
 @code {
-    #region Fields
-
     private RegisterRequest _registerRequest = new();
     private bool _isLoading;
-    private bool _showPassword;
     private List<string> _errors = [];
-
-    #endregion
-
-    #region Methods
 
     private async Task HandleRegisterAsync()
     {
         _isLoading = true;
         _errors.Clear();
-
         try
         {
             AuthResponse response = await AuthService.RegisterBuyerAsync(_registerRequest);
-
             if (response.Succeeded)
             {
-                Snackbar.Add("Account created successfully! Please sign in.", Severity.Success);
+                ToastService.ShowSuccess("Account created successfully! Please sign in.");
                 NavigationManager.NavigateTo("/login");
             }
             else
@@ -155,6 +71,4 @@
             _isLoading = false;
         }
     }
-
-    #endregion
 }

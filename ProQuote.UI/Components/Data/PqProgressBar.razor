@@ -1,0 +1,17 @@
+<div class="pq-progress @(ShowLabel ? "pq-progress--label" : string.Empty)">
+    <div class="pq-progress__track pq-progress__track--@Size">
+        <div class="pq-progress__fill pq-progress__fill--@Variant @(Animated ? "pq-progress__fill--animated" : string.Empty)" style="width:@ClampedValue%"></div>
+    </div>
+    @if (ShowLabel)
+    {
+        <span class="pq-progress__label">@ClampedValue%</span>
+    }
+</div>
+@code {
+    [Parameter] public int Value { get; set; }
+    [Parameter] public string Variant { get; set; } = "primary";
+    [Parameter] public string Size { get; set; } = "md";
+    [Parameter] public bool ShowLabel { get; set; }
+    [Parameter] public bool Animated { get; set; }
+    private int ClampedValue => Math.Clamp(Value, 0, 100);
+}

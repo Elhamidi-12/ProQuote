@@ -1,0 +1,54 @@
+<div class="pq-table-wrap">
+    <table class="pq-table @(Striped ? "pq-table--striped" : string.Empty) @(Hoverable ? "pq-table--hoverable" : string.Empty)">
+        <thead>
+            <tr>
+                @if (Headers is not null)
+                {
+                    @foreach (var header in Headers)
+                    {
+                        <th style="width:@header.Width; text-align:@header.Align" class="@(header.Sortable ? "pq-table__th--sortable" : string.Empty)">
+                            @header.Label
+                            @if (header.Sortable) { <span class="pq-table__sort">?</span> }
+                        </th>
+                    }
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (Loading)
+            {
+                @for (var i = 0; i < 3; i++)
+                {
+                    <tr><td colspan="@HeaderCount"><PqSkeleton Height="var(--pq-space-4)" /></td></tr>
+                }
+            }
+            else if (ChildContent is not null)
+            {
+                @ChildContent
+            }
+            else
+            {
+                <tr><td colspan="@HeaderCount" class="pq-table__empty">@EmptyText</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+@code {
+    public sealed class TableColumn
+    {
+        public string Label { get; set; } = string.Empty;
+        public string Field { get; set; } = string.Empty;
+        public bool Sortable { get; set; }
+        public string? Width { get; set; }
+        public string Align { get; set; } = "left";
+    }
+
+    [Parameter] public List<TableColumn>? Headers { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string EmptyText { get; set; } = "No data";
+    [Parameter] public bool Striped { get; set; }
+    [Parameter] public bool Hoverable { get; set; } = true;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private int HeaderCount => Headers?.Count ?? 1;
+}

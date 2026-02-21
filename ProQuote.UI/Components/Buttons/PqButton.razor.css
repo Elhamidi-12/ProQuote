@@ -1,0 +1,33 @@
+.pq-button {
+    border-radius: var(--pq-radius-md);
+    font-weight: var(--pq-font-medium);
+    transition: all var(--pq-transition-base);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--pq-space-2);
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.pq-button:focus-visible { outline: none; box-shadow: var(--pq-shadow-focus); }
+.pq-button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.pq-button--full { width: 100%; }
+.pq-button--sm { height: var(--pq-input-height-sm); padding: 0 var(--pq-space-3); font-size: var(--pq-text-sm); }
+.pq-button--md { height: var(--pq-input-height-md); padding: 0 var(--pq-space-4); font-size: var(--pq-text-base); }
+.pq-button--lg { height: var(--pq-input-height-lg); padding: 0 var(--pq-space-6); font-size: var(--pq-text-md); }
+.pq-button--primary { background: var(--pq-primary-800); color: var(--pq-text-inverse); }
+.pq-button--primary:hover { background: var(--pq-primary-700); }
+.pq-button--primary:active { background: var(--pq-primary-900); }
+.pq-button--secondary { background: var(--pq-bg-surface); color: var(--pq-text-primary); border-color: var(--pq-border-strong); }
+.pq-button--secondary:hover { background: var(--pq-bg-surface-2); }
+.pq-button--danger { background: var(--pq-danger-600); color: var(--pq-text-inverse); }
+.pq-button--danger:hover { background: var(--pq-danger-500); }
+.pq-button--ghost { background: transparent; color: var(--pq-text-secondary); }
+.pq-button--ghost:hover { background: var(--pq-bg-surface-2); }
+.pq-button--link { background: transparent; color: var(--pq-text-link); padding: 0; border-color: transparent; }
+.pq-button--link:hover { text-decoration: underline; }
+.pq-button__spinner { width: var(--pq-space-4); height: var(--pq-space-4); animation: pq-spin 1s linear infinite; }
+.pq-button__spinner-track { fill: none; stroke: var(--pq-bg-surface-3); stroke-width: 2; }
+.pq-button__spinner-head { fill: none; stroke: currentColor; stroke-width: 2; }
+@keyframes pq-spin { to { transform: rotate(360deg); } }

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ProQuote.Infrastructure\ProQuote.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\ProQuote.UI\ProQuote.UI.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -9,7 +10,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="MudBlazor" Version="9.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

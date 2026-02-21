@@ -1,0 +1,2 @@
+.pq-searchbar__input { width: 100%; height: var(--pq-input-height-md); border: 1px solid var(--pq-border); border-radius: var(--pq-radius-md); background: var(--pq-bg-surface); color: var(--pq-text-primary); padding: 0 var(--pq-space-3); }
+.pq-searchbar__input:focus-visible { outline: none; border-color: var(--pq-border-focus); box-shadow: var(--pq-shadow-focus); }

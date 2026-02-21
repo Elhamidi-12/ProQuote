@@ -1,0 +1,11 @@
+<button class="pq-icon-button pq-icon-button--@Size" disabled="@Disabled" type="button" @onclick="OnClick" aria-label="@AriaLabel">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public string Size { get; set; } = "md";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "icon button";
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

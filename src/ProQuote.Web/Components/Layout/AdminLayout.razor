@@ -1,56 +1,36 @@
 @inherits LayoutComponentBase
-@inject CustomAuthStateProvider AuthStateProvider
-@inject NavigationManager NavigationManager
+@inject ThemeService ThemeService
 
-<MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h6" Class="ml-3">ProQuote - Admin</MudText>
-        <MudSpacer />
-        <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-            <MudMenuItem Icon="@Icons.Material.Filled.Person" Href="/profile">Profile</MudMenuItem>
-            <MudMenuItem Icon="@Icons.Material.Filled.Settings" Href="/settings">Settings</MudMenuItem>
-            <MudDivider />
-            <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="HandleLogoutAsync">Logout</MudMenuItem>
-        </MudMenu>
-    </MudAppBar>
-
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <MudNavMenu>
-            <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-            <MudNavGroup Title="Users" Icon="@Icons.Material.Filled.People" Expanded="true">
-                <MudNavLink Href="/admin/users">All Users</MudNavLink>
-                <MudNavLink Href="/admin/suppliers/pending">Pending Suppliers</MudNavLink>
-            </MudNavGroup>
-            <MudNavGroup Title="RFQs" Icon="@Icons.Material.Filled.RequestQuote" Expanded="true">
-                <MudNavLink Href="/admin/rfqs">All RFQs</MudNavLink>
-                <MudNavLink Href="/admin/rfqs/active">Active RFQs</MudNavLink>
-            </MudNavGroup>
-            <MudNavLink Href="/admin/categories" Icon="@Icons.Material.Filled.Category">Categories</MudNavLink>
-            <MudNavLink Href="/admin/reports" Icon="@Icons.Material.Filled.Assessment">Reports</MudNavLink>
-            <MudNavLink Href="/admin/audit-logs" Icon="@Icons.Material.Filled.History">Audit Logs</MudNavLink>
-            <MudNavLink Href="/admin/settings" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
-        </MudNavMenu>
-    </MudDrawer>
-
-    <MudMainContent Class="pt-16 px-4">
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+<div class="pq-shell pq-shell--admin">
+    <PqSidebar AppName="ProQuote Admin"
+               UserName="Admin User"
+               UserRole="Admin"
+               NavItems="_navItems"
+               IsCollapsed="_isSidebarCollapsed"
+               IsCollapsedChanged="OnSidebarCollapsedChanged" />
+    <main class="pq-shell__main @(_isSidebarCollapsed ? "pq-shell__main--collapsed" : string.Empty)">
+        <PqTopBar Title="Admin Portal" UserName="Admin User" UserRole="Admin" NotificationCount="2" OnThemeToggle="ThemeService.ToggleTheme" />
+        <section class="pq-shell__content">@Body</section>
+    </main>
+    <PqToastContainer />
+</div>
 
 @code {
-    private bool _drawerOpen = true;
+    private bool _isSidebarCollapsed;
 
-    private void ToggleDrawer()
+    private Task OnSidebarCollapsedChanged(bool isCollapsed)
     {
-        _drawerOpen = !_drawerOpen;
+        _isSidebarCollapsed = isCollapsed;
+        return Task.CompletedTask;
     }
 
-    private async Task HandleLogoutAsync()
-    {
-        await AuthStateProvider.MarkUserAsLoggedOutAsync();
-        NavigationManager.NavigateTo("/login", forceLoad: true);
-    }
+    private readonly List<PqSidebar.SidebarNavItem> _navItems =
+    [
+        new() { Label = "Dashboard", Href = "/admin/dashboard" },
+        new() { Label = "Users", Href = "/admin/users" },
+        new() { Label = "Pending Suppliers", Href = "/admin/suppliers/pending" },
+        new() { Label = "RFQs", Href = "/admin/rfqs" },
+        new() { Label = "Reports", Href = "/admin/reports" },
+        new() { Label = "Audit Logs", Href = "/admin/audit-logs" }
+    ];
 }

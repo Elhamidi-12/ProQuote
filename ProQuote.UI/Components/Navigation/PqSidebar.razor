@@ -1,0 +1,47 @@
+<div class="pq-sidebar @(IsCollapsed ? "pq-sidebar--collapsed" : string.Empty)" role="navigation" aria-label="Sidebar">
+    <div class="pq-sidebar__logo">
+        <button class="pq-sidebar__toggle" type="button" aria-label="Toggle sidebar" title="Toggle sidebar" @onclick="ToggleCollapsed">
+            @(IsCollapsed ? ">" : "<")
+        </button>
+        @if (!string.IsNullOrWhiteSpace(LogoSrc)) { <img src="@LogoSrc" alt="@AppName" class="pq-sidebar__logo-img" /> }
+        <div class="pq-sidebar__app-name">@AppName</div>
+    </div>
+    <div class="pq-sidebar__nav">
+        @if (NavItems is not null)
+        {
+            @foreach (var item in NavItems)
+            {
+                <PqSidebarItem Label="@item.Label" Href="@item.Href" Icon="@item.Icon" BadgeCount="@item.BadgeCount" IsCollapsed="@IsCollapsed" />
+            }
+        }
+    </div>
+    <div class="pq-sidebar__bottom">@ChildContent</div>
+    <div class="pq-sidebar__user">
+        <PqAvatar Name="@UserName" Size="sm" />
+        <div class="pq-sidebar__user-meta">
+            <div class="pq-sidebar__user-name">@UserName</div>
+            <div class="pq-sidebar__user-role">@UserRole</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    public sealed class SidebarNavItem
+    {
+        public string Label { get; set; } = string.Empty;
+        public string Href { get; set; } = string.Empty;
+        public string? Icon { get; set; }
+        public int? BadgeCount { get; set; }
+    }
+
+    [Parameter] public string AppName { get; set; } = "ProQuote";
+    [Parameter] public string? LogoSrc { get; set; }
+    [Parameter] public string UserName { get; set; } = string.Empty;
+    [Parameter] public string UserRole { get; set; } = string.Empty;
+    [Parameter] public List<SidebarNavItem>? NavItems { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool IsCollapsed { get; set; }
+    [Parameter] public EventCallback<bool> IsCollapsedChanged { get; set; }
+
+    private Task ToggleCollapsed() => IsCollapsedChanged.InvokeAsync(!IsCollapsed);
+}

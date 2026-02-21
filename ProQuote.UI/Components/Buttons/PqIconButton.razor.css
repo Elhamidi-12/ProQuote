@@ -1,0 +1,17 @@
+.pq-icon-button {
+    border: 1px solid var(--pq-border);
+    background: var(--pq-bg-surface);
+    color: var(--pq-text-secondary);
+    border-radius: var(--pq-radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--pq-transition-base);
+}
+.pq-icon-button:hover { background: var(--pq-bg-surface-2); }
+.pq-icon-button:focus-visible { outline: none; box-shadow: var(--pq-shadow-focus); }
+.pq-icon-button--sm { width: var(--pq-input-height-sm); height: var(--pq-input-height-sm); }
+.pq-icon-button--md { width: var(--pq-input-height-md); height: var(--pq-input-height-md); }
+.pq-icon-button--lg { width: var(--pq-input-height-lg); height: var(--pq-input-height-lg); }
+.pq-icon-button:disabled { opacity: 0.5; pointer-events: none; }

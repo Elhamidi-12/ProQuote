@@ -1,0 +1,5 @@
+.pq-form-field { display: flex; flex-direction: column; gap: var(--pq-space-1); }
+.pq-form-field__label { font-size: var(--pq-text-sm); font-weight: var(--pq-font-medium); color: var(--pq-text-primary); }
+.pq-form-field__required { color: var(--pq-danger-text); }
+.pq-form-field__error { font-size: var(--pq-text-xs); color: var(--pq-danger-text); }
+.pq-form-field__hint { font-size: var(--pq-text-xs); color: var(--pq-text-muted); }

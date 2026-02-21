@@ -1,0 +1,37 @@
+@implements IDisposable
+@inject ToastService ToastService
+
+<div class="pq-toast-container">
+    @foreach (var toast in _toasts)
+    {
+        <PqToast Message="@toast.Message" Title="@toast.Title" Type="@toast.Type" OnClose="() => Remove(toast.Id)" />
+    }
+</div>
+
+@code {
+    private readonly List<ToastService.ToastMessage> _toasts = [];
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnToastAdded += Add;
+        ToastService.OnToastRemoved += Remove;
+    }
+
+    private void Add(ToastService.ToastMessage toast)
+    {
+        _toasts.Add(toast);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Remove(Guid id)
+    {
+        _toasts.RemoveAll(t => t.Id == id);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnToastAdded -= Add;
+        ToastService.OnToastRemoved -= Remove;
+    }
+}

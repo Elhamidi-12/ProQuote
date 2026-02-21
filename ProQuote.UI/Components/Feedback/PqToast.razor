@@ -1,0 +1,14 @@
+<div class="pq-toast pq-toast--@Type" role="status">
+    <span class="pq-toast__bar"></span>
+    <div class="pq-toast__content">
+        @if (!string.IsNullOrWhiteSpace(Title)) { <div class="pq-toast__title">@Title</div> }
+        <div class="pq-toast__message">@Message</div>
+    </div>
+    <button class="pq-toast__close" type="button" @onclick="OnClose" aria-label="Close">×</button>
+</div>
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string Type { get; set; } = "info";
+    [Parameter] public EventCallback OnClose { get; set; }
+}

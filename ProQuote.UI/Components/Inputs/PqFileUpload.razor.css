@@ -1,0 +1,2 @@
+.pq-file-upload__label { display: inline-block; margin-bottom: var(--pq-space-1); font-size: var(--pq-text-sm); color: var(--pq-text-primary); }
+.pq-file-upload__input { display: block; width: 100%; border: 1px dashed var(--pq-border-strong); border-radius: var(--pq-radius-md); padding: var(--pq-space-3); background: var(--pq-bg-surface); color: var(--pq-text-secondary); }

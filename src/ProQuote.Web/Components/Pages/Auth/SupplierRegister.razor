@@ -1,208 +1,66 @@
 @page "/register/supplier"
+@layout AuthLayout
 @rendermode InteractiveServer
 @inject IAuthService AuthService
 @inject IUnitOfWork UnitOfWork
 @inject NavigationManager NavigationManager
-@inject ISnackbar Snackbar
+@inject ToastService ToastService
 
 <PageTitle>Supplier Registration - ProQuote</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8 mb-8">
-    <MudPaper Elevation="3" Class="pa-8">
-        <MudStack Spacing="4">
-            <div class="text-center">
-                <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" Size="Size.Large" Style="font-size: 3rem;" />
-                <MudText Typo="Typo.h4" Class="mt-2">Supplier Registration</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Register your company to receive RFQs and submit quotes</MudText>
+<div style="max-width:700px;margin:var(--pq-space-8) auto;">
+    <PqCard>
+        <h1 class="pq-section-title">Supplier Registration</h1>
+        <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-4);">
+            <PqInput Label="First Name" Value="@_request.FirstName" ValueChanged="@(v => _request.FirstName = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Last Name" Value="@_request.LastName" ValueChanged="@(v => _request.LastName = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Email" Type="email" Value="@_request.Email" ValueChanged="@(v => _request.Email = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Phone Number" Value="@_request.PhoneNumber" ValueChanged="@(v => _request.PhoneNumber = v)" Disabled="_isLoading" />
+            <PqInput Label="Password" Type="password" Value="@_request.Password" ValueChanged="@(v => _request.Password = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Confirm Password" Type="password" Value="@_request.ConfirmPassword" ValueChanged="@(v => _request.ConfirmPassword = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Company Name" Value="@_request.CompanyName" ValueChanged="@(v => _request.CompanyName = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Contact Name" Value="@_request.ContactName" ValueChanged="@(v => _request.ContactName = v ?? string.Empty)" Disabled="_isLoading" />
+            <PqInput Label="Website" Value="@_request.Website" ValueChanged="@(v => _request.Website = v)" Disabled="_isLoading" />
+            <PqInput Label="Tax ID" Value="@_request.TaxId" ValueChanged="@(v => _request.TaxId = v)" Disabled="_isLoading" />
+            <PqInput Label="Address" Value="@_request.Address" ValueChanged="@(v => _request.Address = v)" Disabled="_isLoading" />
+            <PqInput Label="City" Value="@_request.City" ValueChanged="@(v => _request.City = v)" Disabled="_isLoading" />
+            <PqInput Label="Country" Value="@_request.Country" ValueChanged="@(v => _request.Country = v)" Disabled="_isLoading" />
+
+            <div>
+                <div class="pq-label" style="margin-bottom:var(--pq-space-2);">Categories</div>
+                <div class="pq-flex" style="flex-wrap:wrap;gap:var(--pq-space-3);">
+                    @foreach (Domain.Entities.Category category in _categories)
+                    {
+                        <label class="pq-body-sm" style="display:inline-flex;gap:var(--pq-space-1);align-items:center;">
+                            <input type="checkbox" checked="@_selectedCategories.Contains(category.Id)" @onchange="(e => ToggleCategory(category.Id, (bool)e.Value!))" />
+                            @category.Name
+                        </label>
+                    }
+                </div>
             </div>
-
-            <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
-                @* Tab 1: Account Information *@
-                <MudTabPanel Text="Account" Icon="@Icons.Material.Filled.Person">
-                    <MudGrid Class="mt-2">
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.FirstName"
-                                          Label="First Name *"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.LastName"
-                                          Label="Last Name *"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="_request.Email"
-                                          Label="Email *"
-                                          Variant="Variant.Outlined"
-                                          InputType="InputType.Email"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="_request.PhoneNumber"
-                                          Label="Phone Number"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.Password"
-                                          Label="Password *"
-                                          Variant="Variant.Outlined"
-                                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                                          Disabled="_isLoading"
-                                          Adornment="Adornment.End"
-                                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
-                                          OnAdornmentClick="@(() => _showPassword = !_showPassword)"
-                                          HelperText="Min 8 characters" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.ConfirmPassword"
-                                          Label="Confirm Password *"
-                                          Variant="Variant.Outlined"
-                                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                    </MudGrid>
-                </MudTabPanel>
-
-                @* Tab 2: Company Information *@
-                <MudTabPanel Text="Company" Icon="@Icons.Material.Filled.Business">
-                    <MudGrid Class="mt-2">
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="_request.CompanyName"
-                                          Label="Company Name *"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="_request.ContactName"
-                                          Label="Contact Person Name *"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.Website"
-                                          Label="Website"
-                                          Variant="Variant.Outlined"
-                                          Placeholder="https://www.example.com"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.TaxId"
-                                          Label="Tax ID / VAT Number"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="_request.Address"
-                                          Label="Address"
-                                          Variant="Variant.Outlined"
-                                          Lines="2"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.City"
-                                          Label="City"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_request.Country"
-                                          Label="Country"
-                                          Variant="Variant.Outlined"
-                                          Disabled="_isLoading" />
-                        </MudItem>
-                    </MudGrid>
-                </MudTabPanel>
-
-                @* Tab 3: Categories *@
-                <MudTabPanel Text="Categories" Icon="@Icons.Material.Filled.Category">
-                    <MudText Typo="Typo.body1" Class="mt-2 mb-4">
-                        Select the categories your company can provide products or services in:
-                    </MudText>
-                    <MudGrid>
-                        @foreach (Domain.Entities.Category category in _categories)
-                        {
-                            <MudItem xs="12" sm="6" md="4">
-                                <MudCheckBox T="bool"
-                                             Value="_selectedCategories.Contains(category.Id)"
-                                             ValueChanged="@((bool value) => ToggleCategory(category.Id, value))"
-                                             Label="@category.Name"
-                                             Color="Color.Primary" />
-                            </MudItem>
-                        }
-                    </MudGrid>
-                </MudTabPanel>
-            </MudTabs>
 
             @if (_errors.Count > 0)
             {
-                <MudAlert Severity="Severity.Error" Dense="true">
-                    <ul class="mb-0">
-                        @foreach (string error in _errors)
-                        {
-                            <li>@error</li>
-                        }
-                    </ul>
-                </MudAlert>
+                <ul>
+                    @foreach (string error in _errors)
+                    {
+                        <li class="pq-caption" style="color:var(--pq-danger-text)">@error</li>
+                    }
+                </ul>
             }
 
-            <MudStack Row="true" Justify="Justify.SpaceBetween">
-                <MudButton Variant="Variant.Text" OnClick="PreviousTab" Disabled="_activeTab == 0">
-                    <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-1" /> Back
-                </MudButton>
-                <MudStack Row="true" Spacing="2">
-                    @if (_activeTab < 2)
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextTab">
-                            Next <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="ml-1" />
-                        </MudButton>
-                    }
-                    else
-                    {
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   OnClick="HandleRegisterAsync"
-                                   Disabled="_isLoading">
-                            @if (_isLoading)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                                <span>Submitting...</span>
-                            }
-                            else
-                            {
-                                <span>Submit Registration</span>
-                            }
-                        </MudButton>
-                    }
-                </MudStack>
-            </MudStack>
-
-            <MudDivider />
-
-            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
-                <MudText Typo="Typo.body2">Already have an account?</MudText>
-                <MudLink Href="/login" Typo="Typo.body2">Sign In</MudLink>
-            </MudStack>
-        </MudStack>
-    </MudPaper>
-</MudContainer>
+            <PqButton Variant="primary" Loading="_isLoading" OnClick="HandleRegisterAsync" FullWidth="true">Submit Registration</PqButton>
+        </div>
+        <div style="margin-top:var(--pq-space-4);"><a href="/login">Sign In</a></div>
+    </PqCard>
+</div>
 
 @code {
-    #region Fields
-
-    private int _activeTab;
     private SupplierRegisterRequest _request = new();
     private List<Domain.Entities.Category> _categories = [];
     private HashSet<Guid> _selectedCategories = [];
     private bool _isLoading;
-    private bool _showPassword;
     private List<string> _errors = [];
-
-    #endregion
-
-    #region Lifecycle
 
     protected override async Task OnInitializedAsync()
     {
@@ -210,36 +68,9 @@
         _categories = allCategories.ToList();
     }
 
-    #endregion
-
-    #region Methods
-
-    private void NextTab()
-    {
-        if (_activeTab < 2)
-        {
-            _activeTab++;
-        }
-    }
-
-    private void PreviousTab()
-    {
-        if (_activeTab > 0)
-        {
-            _activeTab--;
-        }
-    }
-
     private void ToggleCategory(Guid categoryId, bool isSelected)
     {
-        if (isSelected)
-        {
-            _selectedCategories.Add(categoryId);
-        }
-        else
-        {
-            _selectedCategories.Remove(categoryId);
-        }
+        if (isSelected) _selectedCategories.Add(categoryId); else _selectedCategories.Remove(categoryId);
     }
 
     private async Task HandleRegisterAsync()
@@ -247,7 +78,6 @@
         _isLoading = true;
         _errors.Clear();
 
-        // Validate
         if (string.IsNullOrWhiteSpace(_request.FirstName) ||
             string.IsNullOrWhiteSpace(_request.LastName) ||
             string.IsNullOrWhiteSpace(_request.Email) ||
@@ -255,7 +85,7 @@
             string.IsNullOrWhiteSpace(_request.CompanyName) ||
             string.IsNullOrWhiteSpace(_request.ContactName))
         {
-            _errors.Add("Please fill in all required fields (marked with *).");
+            _errors.Add("Please fill in all required fields.");
             _isLoading = false;
             return;
         }
@@ -270,12 +100,11 @@
         try
         {
             _request.CategoryIds = _selectedCategories.ToList();
-
             AuthResponse response = await AuthService.RegisterSupplierAsync(_request);
 
             if (response.Succeeded)
             {
-                Snackbar.Add("Registration submitted! Your account is pending admin approval.", Severity.Success);
+                ToastService.ShowSuccess("Registration submitted! Your account is pending admin approval.");
                 NavigationManager.NavigateTo("/login");
             }
             else
@@ -292,6 +121,4 @@
             _isLoading = false;
         }
     }
-
-    #endregion
 }

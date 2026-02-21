@@ -1,0 +1,18 @@
+@import url(''https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'');
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html, body { height: 100%; }
+body {
+  line-height: var(--pq-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: var(--pq-font-family);
+  background: var(--pq-bg-page);
+  color: var(--pq-text-primary);
+}
+img, picture, video, canvas { display: block; max-width: 100%; }
+svg { display: inline-block; }
+input, button, textarea, select { font: inherit; }
+a { color: inherit; }
+ul, ol { list-style: none; padding: 0; }

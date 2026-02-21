@@ -1,0 +1,9 @@
+<div class="pq-searchbar">
+    <input class="pq-searchbar__input" type="search" value="@Value" placeholder="@Placeholder" @oninput="HandleInput" aria-label="Search" />
+</div>
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Search...";
+    private Task HandleInput(ChangeEventArgs e) => ValueChanged.InvokeAsync(e.Value?.ToString());
+}

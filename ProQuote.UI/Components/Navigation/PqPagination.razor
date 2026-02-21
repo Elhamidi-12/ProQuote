@@ -1,0 +1,37 @@
+<div class="pq-pagination">
+    <div class="pq-pagination__meta">@MetaText</div>
+    <div class="pq-pagination__actions">
+        <button class="pq-pagination__btn" disabled="@(CurrentPage <= 1)" @onclick="() => ChangePage(CurrentPage - 1)">‹</button>
+        @for (int i = 1; i <= TotalPages; i++)
+        {
+            <button class="pq-pagination__btn @(i == CurrentPage ? "pq-pagination__btn--active" : string.Empty)" @onclick="() => ChangePage(i)">@i</button>
+        }
+        <button class="pq-pagination__btn" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(CurrentPage + 1)">›</button>
+    </div>
+</div>
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public EventCallback<int> CurrentPageChanged { get; set; }
+    [Parameter] public int TotalPages { get; set; } = 1;
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public int PageSize { get; set; } = 20;
+    [Parameter] public EventCallback<int> OnPageChange { get; set; }
+
+    private string MetaText
+    {
+        get
+        {
+            int start = TotalItems == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1;
+            int end = Math.Min(CurrentPage * PageSize, TotalItems);
+            return $"Showing {start}-{end} of {TotalItems} results";
+        }
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page < 1 || page > TotalPages) return;
+        CurrentPage = page;
+        await CurrentPageChanged.InvokeAsync(page);
+        await OnPageChange.InvokeAsync(page);
+    }
+}

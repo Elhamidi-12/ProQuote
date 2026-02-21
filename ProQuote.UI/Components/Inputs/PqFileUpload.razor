@@ -1,0 +1,10 @@
+<div class="pq-file-upload">
+    <label class="pq-file-upload__label" for="@_id">@Label</label>
+    <InputFile id="@_id" class="pq-file-upload__input" OnChange="OnChange" multiple="@Multiple" />
+</div>
+@code {
+    private readonly string _id = $"pqf-{Guid.NewGuid():N}";
+    [Parameter] public string Label { get; set; } = "Upload file";
+    [Parameter] public bool Multiple { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnChange { get; set; }
+}

@@ -1,0 +1,4 @@
+.pq-shell { display: flex; min-height: 100vh; background: var(--pq-bg-page); }
+.pq-shell__main { margin-left: var(--pq-sidebar-width); width: calc(100% - var(--pq-sidebar-width)); min-height: 100vh; }
+.pq-shell__main--collapsed { margin-left: var(--pq-sidebar-width-collapsed); width: calc(100% - var(--pq-sidebar-width-collapsed)); }
+.pq-shell__content { padding: var(--pq-space-6); }

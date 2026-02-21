@@ -1,0 +1,16 @@
+<div class="pq-empty-state">
+    <div class="pq-empty-state__icon">@((MarkupString)Icon)</div>
+    <div class="pq-empty-state__title">@Title</div>
+    <div class="pq-empty-state__description">@Description</div>
+    @if (!string.IsNullOrWhiteSpace(ActionLabel))
+    {
+        <PqButton Variant="primary" OnClick="OnAction">@ActionLabel</PqButton>
+    }
+</div>
+@code {
+    [Parameter] public string Icon { get; set; } = "•";
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public string? ActionLabel { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+}

@@ -1,0 +1,62 @@
+<div class="pq-input-field">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label class="pq-input-field__label">
+            @Label
+            @if (Required)
+            {
+                <span class="pq-input-field__required" aria-hidden="true">*</span>
+            }
+        </label>
+    }
+
+    <div class="pq-input-field__wrapper @(HasError ? "pq-input-field__wrapper--error" : string.Empty)">
+        @if (Prefix is not null)
+        {
+            <span class="pq-input-field__affix">@Prefix</span>
+        }
+
+        <input
+            class="pq-input-field__input pq-input-field__input--@Size"
+            type="@Type"
+            value="@Value"
+            placeholder="@Placeholder"
+            disabled="@Disabled"
+            required="@Required"
+            aria-invalid="@HasError"
+            @oninput="HandleInput" />
+
+        @if (Suffix is not null)
+        {
+            <span class="pq-input-field__affix">@Suffix</span>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <div class="pq-input-field__error">@Error</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="pq-input-field__hint">@Hint</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public RenderFragment? Prefix { get; set; }
+    [Parameter] public RenderFragment? Suffix { get; set; }
+    [Parameter] public string Size { get; set; } = "md";
+
+    private bool HasError => !string.IsNullOrWhiteSpace(Error);
+
+    private Task HandleInput(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString());
+}

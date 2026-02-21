@@ -1,0 +1,21 @@
+@inject NavigationManager NavigationManager
+<a class="pq-sidebar-item @(IsActive ? "pq-sidebar-item--active" : string.Empty) @(IsCollapsed ? "pq-sidebar-item--collapsed" : string.Empty)"
+   href="@Href"
+   aria-current="@(IsActive ? "page" : null)"
+   aria-label="@Label"
+   title="@(IsCollapsed ? Label : null)">
+    @if (!string.IsNullOrWhiteSpace(Icon)) { <span class="pq-sidebar-item__icon">@((MarkupString)Icon)</span> }
+    <span class="pq-sidebar-item__label">@Label</span>
+    @if (BadgeCount.HasValue) { <span class="pq-sidebar-item__badge">@BadgeCount</span> }
+</a>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Href { get; set; } = string.Empty;
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public int? BadgeCount { get; set; }
+    [Parameter] public bool Active { get; set; }
+    [Parameter] public bool IsCollapsed { get; set; }
+
+    private bool IsActive => Active || NavigationManager.Uri.EndsWith(Href, StringComparison.OrdinalIgnoreCase);
+}

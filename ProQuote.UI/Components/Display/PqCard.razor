@@ -1,0 +1,11 @@
+<div class="pq-card pq-card--padding-@Padding pq-card--shadow-@Shadow @(Bordered ? "pq-card--bordered" : string.Empty) @(Hoverable ? "pq-card--hoverable" : string.Empty)">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public string Padding { get; set; } = "md";
+    [Parameter] public string Shadow { get; set; } = "sm";
+    [Parameter] public bool Bordered { get; set; } = true;
+    [Parameter] public bool Hoverable { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

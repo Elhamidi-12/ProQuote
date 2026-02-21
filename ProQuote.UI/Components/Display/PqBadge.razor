@@ -1,0 +1,26 @@
+<span class="pq-badge pq-badge--@ResolvedVariant pq-badge--@Size" role="status">
+    @if (Dot)
+    {
+        <span class="pq-badge__dot" aria-hidden="true"></span>
+    }
+    @ChildContent
+</span>
+
+@code {
+    [Parameter] public string Variant { get; set; } = "default";
+    [Parameter] public string Size { get; set; } = "md";
+    [Parameter] public bool Dot { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string ResolvedVariant => Variant.ToLowerInvariant() switch
+    {
+        "draft" => "default",
+        "published" => "primary",
+        "awarded" => "success",
+        "closed" => "closed",
+        "expired" => "danger",
+        "pending" => "warning",
+        "cancelled" => "danger",
+        _ => Variant.ToLowerInvariant()
+    };
+}

@@ -1,0 +1,16 @@
+<div class="pq-form-field">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label class="pq-form-field__label">@Label @if (Required) { <span class="pq-form-field__required">*</span> }</label>
+    }
+    @ChildContent
+    @if (!string.IsNullOrWhiteSpace(Error)) { <div class="pq-form-field__error">@Error</div> }
+    else if (!string.IsNullOrWhiteSpace(Hint)) { <div class="pq-form-field__hint">@Hint</div> }
+</div>
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,29 @@
+<div class="pq-tabs pq-tabs--@Variant" role="tablist">
+    @if (Items is not null)
+    {
+        @foreach (var item in Items)
+        {
+            bool isActive = string.Equals(item.Value, ActiveTab, StringComparison.OrdinalIgnoreCase);
+            <button class="pq-tabs__item @(isActive ? "pq-tabs__item--active" : string.Empty)" disabled="@item.Disabled" role="tab" aria-selected="@isActive" @onclick="() => SelectTab(item.Value)">
+                @if (!string.IsNullOrWhiteSpace(item.Icon)) { <span>@((MarkupString)item.Icon)</span> }
+                <span>@item.Label</span>
+                @if (item.Count.HasValue) { <span class="pq-tabs__count">@item.Count</span> }
+            </button>
+        }
+    }
+</div>
+@code {
+    public sealed class TabItem { public string Label { get; set; } = string.Empty; public string Value { get; set; } = string.Empty; public int? Count { get; set; } public string? Icon { get; set; } public bool Disabled { get; set; } }
+    [Parameter] public List<TabItem>? Items { get; set; }
+    [Parameter] public string? ActiveTab { get; set; }
+    [Parameter] public EventCallback<string?> ActiveTabChanged { get; set; }
+    [Parameter] public string Variant { get; set; } = "underline";
+    [Parameter] public EventCallback<string> OnTabChange { get; set; }
+
+    private async Task SelectTab(string value)
+    {
+        ActiveTab = value;
+        await ActiveTabChanged.InvokeAsync(ActiveTab);
+        await OnTabChange.InvokeAsync(value);
+    }
+}

@@ -1,0 +1,20 @@
+<div class="pq-topbar">
+    <div class="pq-topbar__left">
+        <h1 class="pq-topbar__title">@Title</h1>
+    </div>
+    <div class="pq-topbar__right">
+        @if (ShowSearch) { <PqSearchBar Placeholder="Search..." /> }
+        <button class="pq-topbar__icon-btn" type="button" @onclick="OnThemeToggle" aria-label="Toggle theme">?</button>
+        <button class="pq-topbar__icon-btn" type="button" aria-label="Notifications">?? <span class="pq-topbar__count">@NotificationCount</span></button>
+        <div class="pq-topbar__user"><PqAvatar Name="@UserName" Size="sm" /><div><div>@UserName</div><div class="pq-topbar__role">@UserRole</div></div></div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public bool ShowSearch { get; set; }
+    [Parameter] public int NotificationCount { get; set; }
+    [Parameter] public string UserName { get; set; } = string.Empty;
+    [Parameter] public string UserRole { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnThemeToggle { get; set; }
+}

@@ -1,0 +1,6 @@
+.pq-pagination { display: flex; justify-content: space-between; align-items: center; gap: var(--pq-space-4); }
+.pq-pagination__meta { font-size: var(--pq-text-sm); color: var(--pq-text-secondary); }
+.pq-pagination__actions { display: flex; gap: var(--pq-space-2); }
+.pq-pagination__btn { width: var(--pq-input-height-sm); height: var(--pq-input-height-sm); border-radius: var(--pq-radius-md); border: 1px solid var(--pq-border); background: transparent; color: var(--pq-text-primary); }
+.pq-pagination__btn--active { background: var(--pq-primary-800); color: var(--pq-text-inverse); border-color: var(--pq-primary-800); }
+.pq-pagination__btn:disabled { opacity: 0.4; }

@@ -1,0 +1,46 @@
+@if (IsOpen)
+{
+    <div class="pq-modal-backdrop" @onclick="HandleBackdropClick">
+        <div class="pq-modal pq-modal--@Size" role="dialog" aria-modal="true" aria-label="@Title" @onclick:stopPropagation="true">
+            <div class="pq-modal__header">
+                <h2>@Title</h2>
+                @if (ShowClose)
+                {
+                    <button class="pq-modal__close" type="button" @onclick="Close">×</button>
+                }
+            </div>
+            <div class="pq-modal__body">@ChildContent</div>
+            @if (Footer is not null)
+            {
+                <div class="pq-modal__footer">@Footer</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Size { get; set; } = "md";
+    [Parameter] public bool ShowClose { get; set; } = true;
+    [Parameter] public bool CloseOnBackdrop { get; set; } = true;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdrop)
+        {
+            await Close();
+        }
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+        await OnClose.InvokeAsync();
+    }
+}

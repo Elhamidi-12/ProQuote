@@ -1,0 +1,7 @@
+.pq-page-title { font-size: var(--pq-text-5xl); font-weight: var(--pq-font-bold); color: var(--pq-text-primary); letter-spacing: var(--pq-tracking-tight); }
+.pq-section-title { font-size: var(--pq-text-2xl); font-weight: var(--pq-font-semibold); color: var(--pq-text-primary); }
+.pq-card-title { font-size: var(--pq-text-xl); font-weight: var(--pq-font-semibold); color: var(--pq-text-primary); }
+.pq-label { font-size: var(--pq-text-xs); font-weight: var(--pq-font-medium); color: var(--pq-text-muted); text-transform: uppercase; letter-spacing: var(--pq-tracking-wider); }
+.pq-body { font-size: var(--pq-text-base); color: var(--pq-text-primary); line-height: var(--pq-leading-normal); }
+.pq-body-sm { font-size: var(--pq-text-sm); color: var(--pq-text-secondary); line-height: var(--pq-leading-normal); }
+.pq-caption { font-size: var(--pq-text-xs); color: var(--pq-text-muted); }

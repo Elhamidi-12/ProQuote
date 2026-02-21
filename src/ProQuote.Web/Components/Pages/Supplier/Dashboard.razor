@@ -5,227 +5,41 @@
 
 <PageTitle>Supplier Dashboard - ProQuote</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Supplier Dashboard</MudText>
+<div class="pq-flex pq-flex-col pq-gap-4">
+    <h1 class="pq-section-title">Supplier Dashboard</h1>
 
-<MudGrid>
-    @* Stats Cards *@
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <div>
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">New Invitations</MudText>
-                    <MudText Typo="Typo.h4" Color="Color.Primary">@_stats.NewInvitations</MudText>
-                </div>
-                <MudAvatar Color="Color.Primary" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.Mail" />
-                </MudAvatar>
-            </MudStack>
-        </MudPaper>
-    </MudItem>
+    <div class="dashboard-grid">
+        <PqStatCard Title="New Invitations" Value="@_stats.NewInvitations.ToString()" />
+        <PqStatCard Title="Pending Quotes" Value="@_stats.PendingQuotes.ToString()" />
+        <PqStatCard Title="Submitted Quotes" Value="@_stats.SubmittedQuotes.ToString()" />
+        <PqStatCard Title="Won Contracts" Value="@_stats.WonContracts.ToString()" />
+    </div>
 
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <div>
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Pending Quotes</MudText>
-                    <MudText Typo="Typo.h4" Color="Color.Warning">@_stats.PendingQuotes</MudText>
-                </div>
-                <MudAvatar Color="Color.Warning" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.Edit" />
-                </MudAvatar>
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <div>
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Submitted Quotes</MudText>
-                    <MudText Typo="Typo.h4">@_stats.SubmittedQuotes</MudText>
-                </div>
-                <MudAvatar Color="Color.Info" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.Send" />
-                </MudAvatar>
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <div>
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Won Contracts</MudText>
-                    <MudText Typo="Typo.h4" Color="Color.Success">@_stats.WonContracts</MudText>
-                </div>
-                <MudAvatar Color="Color.Success" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" />
-                </MudAvatar>
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-
-    @* New RFQ Invitations *@
-    <MudItem xs="12" md="7">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudText Typo="Typo.h6">
-                    <MudIcon Icon="@Icons.Material.Filled.Mail" Class="mr-2" />
-                    New RFQ Invitations
-                </MudText>
-                <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/supplier/invitations">View All</MudButton>
-            </MudStack>
-
-            @if (_newInvitations.Count == 0)
+    <PqCard>
+        <h2 class="pq-card-title">New RFQ Invitations</h2>
+        <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+            @foreach (RfqInvitationItem invitation in _newInvitations)
             {
-                <MudAlert Severity="Severity.Info" Dense="true">
-                    No new invitations at the moment. Check back later!
-                </MudAlert>
+                <li class="pq-body-sm">@invitation.ReferenceNumber - @invitation.Title (Due: @invitation.Deadline.ToString("MMM dd, yyyy"))</li>
             }
-            else
-            {
-                <MudList T="RfqInvitationItem" Dense="true">
-                    @foreach (RfqInvitationItem invitation in _newInvitations)
-                    {
-                        <MudListItem>
-                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width: 100%;">
-                                <div>
-                                    <MudText Typo="Typo.body1">@invitation.Title</MudText>
-                                    <MudStack Row="true" Spacing="2">
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@invitation.ReferenceNumber</MudText>
-                                        <MudText Typo="Typo.caption">•</MudText>
-                                        <MudText Typo="Typo.caption" Color="@GetDeadlineTextColor(invitation.Deadline)">
-                                            Due: @invitation.Deadline.ToString("MMM dd, yyyy")
-                                        </MudText>
-                                    </MudStack>
-                                </div>
-                                <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
-                                    <MudButton Color="Color.Primary">View</MudButton>
-                                    <MudButton Color="Color.Success">Accept</MudButton>
-                                </MudButtonGroup>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                </MudList>
-            }
-        </MudPaper>
-    </MudItem>
-
-    @* Performance & Quick Actions *@
-    <MudItem xs="12" md="5">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">
-                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Class="mr-2" />
-                Your Performance
-            </MudText>
-            <MudStack Spacing="3">
-                <div>
-                    <MudStack Row="true" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.body2">Win Rate</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Success">@_performance.WinRate%</MudText>
-                    </MudStack>
-                    <MudProgressLinear Color="Color.Success" Value="@_performance.WinRate" Class="mt-1" />
-                </div>
-                <div>
-                    <MudStack Row="true" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.body2">Response Rate</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Primary">@_performance.ResponseRate%</MudText>
-                    </MudStack>
-                    <MudProgressLinear Color="Color.Primary" Value="@_performance.ResponseRate" Class="mt-1" />
-                </div>
-                <div>
-                    <MudStack Row="true" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.body2">On-Time Delivery</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Info">@_performance.OnTimeDelivery%</MudText>
-                    </MudStack>
-                    <MudProgressLinear Color="Color.Info" Value="@_performance.OnTimeDelivery" Class="mt-1" />
-                </div>
-                <div>
-                    <MudStack Row="true" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.body2">Customer Rating</MudText>
-                        <MudRating ReadOnly="true" SelectedValue="@_performance.Rating" Size="Size.Small" />
-                    </MudStack>
-                </div>
-            </MudStack>
-        </MudPaper>
-
-        <MudPaper Class="pa-4 mt-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">
-                <MudIcon Icon="@Icons.Material.Filled.FlashOn" Class="mr-2" />
-                Quick Actions
-            </MudText>
-            <MudStack Spacing="2">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Mail" Href="/supplier/invitations">
-                    View Invitations
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.Description" Href="/supplier/quotes/draft">
-                    Draft Quotes
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true" StartIcon="@Icons.Material.Filled.Business" Href="/supplier/company">
-                    Update Profile
-                </MudButton>
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+        </ul>
+    </PqCard>
+</div>
 
 @code {
-    #region Fields
-
     private DashboardStats _stats = new();
     private List<RfqInvitationItem> _newInvitations = [];
-    private PerformanceStats _performance = new();
-
-    #endregion
-
-    #region Lifecycle
 
     protected override void OnInitialized()
     {
-        // Load sample data - in real implementation would load from database
-        _stats = new DashboardStats
-        {
-            NewInvitations = 3,
-            PendingQuotes = 2,
-            SubmittedQuotes = 8,
-            WonContracts = 5
-        };
-
+        _stats = new DashboardStats { NewInvitations = 3, PendingQuotes = 2, SubmittedQuotes = 8, WonContracts = 5 };
         _newInvitations =
         [
             new RfqInvitationItem { ReferenceNumber = "RFQ-2025-00045", Title = "Office IT Equipment Procurement", Deadline = DateTime.UtcNow.AddDays(7) },
             new RfqInvitationItem { ReferenceNumber = "RFQ-2025-00044", Title = "Software Development Services", Deadline = DateTime.UtcNow.AddDays(10) },
             new RfqInvitationItem { ReferenceNumber = "RFQ-2025-00043", Title = "Cloud Infrastructure Setup", Deadline = DateTime.UtcNow.AddDays(14) }
         ];
-
-        _performance = new PerformanceStats
-        {
-            WinRate = 62,
-            ResponseRate = 95,
-            OnTimeDelivery = 88,
-            Rating = 4
-        };
     }
-
-    #endregion
-
-    #region Methods
-
-    private static Color GetDeadlineTextColor(DateTime deadline)
-    {
-        int daysLeft = (deadline - DateTime.UtcNow).Days;
-        return daysLeft switch
-        {
-            <= 3 => Color.Error,
-            <= 7 => Color.Warning,
-            _ => Color.Secondary
-        };
-    }
-
-    #endregion
-
-    #region Classes
 
     private class DashboardStats
     {
@@ -241,14 +55,4 @@
         public string Title { get; set; } = string.Empty;
         public DateTime Deadline { get; set; }
     }
-
-    private class PerformanceStats
-    {
-        public int WinRate { get; set; }
-        public int ResponseRate { get; set; }
-        public int OnTimeDelivery { get; set; }
-        public int Rating { get; set; }
-    }
-
-    #endregion
 }

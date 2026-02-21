@@ -1,0 +1,5 @@
+.pq-breadcrumb { display: flex; align-items: center; gap: var(--pq-space-2); font-size: var(--pq-text-sm); }
+.pq-breadcrumb__link { color: var(--pq-text-secondary); text-decoration: none; }
+.pq-breadcrumb__link:hover { color: var(--pq-text-primary); }
+.pq-breadcrumb__sep { color: var(--pq-text-muted); }
+.pq-breadcrumb__current { color: var(--pq-text-primary); font-weight: var(--pq-font-medium); }

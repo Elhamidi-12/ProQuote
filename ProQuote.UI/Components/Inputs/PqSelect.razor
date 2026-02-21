@@ -1,0 +1,26 @@
+<div class="pq-select-field">
+    <label class="pq-select-field__label">@Label</label>
+    <select class="pq-select-field__select" value="@Value" @onchange="HandleChange" disabled="@Disabled">
+        @if (!string.IsNullOrWhiteSpace(Placeholder))
+        {
+            <option value="">@Placeholder</option>
+        }
+        @if (Options is not null)
+        {
+            @foreach (var item in Options)
+            {
+                <option value="@item.Value">@item.Label</option>
+            }
+        }
+    </select>
+</div>
+@code {
+    public sealed class SelectOption { public string Value { get; set; } = string.Empty; public string Label { get; set; } = string.Empty; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public IReadOnlyList<SelectOption>? Options { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private Task HandleChange(ChangeEventArgs e) => ValueChanged.InvokeAsync(e.Value?.ToString());
+}
