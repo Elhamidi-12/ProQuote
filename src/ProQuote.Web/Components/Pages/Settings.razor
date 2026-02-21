@@ -1,10 +1,8 @@
 @page "/settings"
 @rendermode InteractiveServer
+@layout MainLayout
 @attribute [Authorize]
 
 <PageTitle>Settings - ProQuote</PageTitle>
 
-<h1 class="pq-section-title">Settings</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for user settings configuration.</p>
-</PqCard>
+<SettingsContent />

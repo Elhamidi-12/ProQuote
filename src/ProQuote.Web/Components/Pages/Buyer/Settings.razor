@@ -1,0 +1,9 @@
+@page "/buyer/settings"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+@using ProQuote.Infrastructure.Identity
+
+<PageTitle>Settings - ProQuote</PageTitle>
+
+<SettingsContent />

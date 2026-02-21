@@ -1,0 +1,9 @@
+@page "/supplier/settings"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using ProQuote.Infrastructure.Identity
+
+<PageTitle>Settings - ProQuote</PageTitle>
+
+<SettingsContent />

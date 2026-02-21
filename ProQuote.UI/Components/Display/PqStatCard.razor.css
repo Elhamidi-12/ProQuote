@@ -15,4 +15,5 @@
   align-items: center;
   justify-content: center;
 }
+.pq-stat-card__icon i { font-size: var(--pq-text-3xl); line-height: 1; }
 .pq-stat-card__loading { height: var(--pq-space-16); border-radius: var(--pq-radius-md); background: var(--pq-bg-surface-2); }

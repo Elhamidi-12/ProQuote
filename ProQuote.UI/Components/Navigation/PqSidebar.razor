@@ -1,10 +1,16 @@
-<div class="pq-sidebar @(IsCollapsed ? "pq-sidebar--collapsed" : string.Empty)" role="navigation" aria-label="Sidebar">
+<div class="pq-sidebar @(IsCollapsed ? "pq-sidebar--collapsed" : string.Empty)" role="navigation" aria-label="Sidebar" @onclick="HandleSidebarClick">
     <div class="pq-sidebar__logo">
-        <button class="pq-sidebar__toggle" type="button" aria-label="Toggle sidebar" title="Toggle sidebar" @onclick="ToggleCollapsed">
-            @(IsCollapsed ? ">" : "<")
-        </button>
         @if (!string.IsNullOrWhiteSpace(LogoSrc)) { <img src="@LogoSrc" alt="@AppName" class="pq-sidebar__logo-img" /> }
-        <div class="pq-sidebar__app-name">@AppName</div>
+        <div class="pq-sidebar__app-name">
+            @if (AppTitle is not null)
+            {
+                @AppTitle
+            }
+            else
+            {
+                @AppName
+            }
+        </div>
     </div>
     <div class="pq-sidebar__nav">
         @if (NavItems is not null)
@@ -16,12 +22,32 @@
         }
     </div>
     <div class="pq-sidebar__bottom">@ChildContent</div>
-    <div class="pq-sidebar__user">
-        <PqAvatar Name="@UserName" Size="sm" />
-        <div class="pq-sidebar__user-meta">
-            <div class="pq-sidebar__user-name">@UserName</div>
-            <div class="pq-sidebar__user-role">@UserRole</div>
-        </div>
+    <div class="pq-sidebar__user-wrapper">
+        <button class="pq-sidebar__user" type="button" aria-haspopup="menu" aria-expanded="@_isUserMenuOpen" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
+            <PqAvatar Name="@UserName" Size="sm" />
+            <div class="pq-sidebar__user-meta">
+                <div class="pq-sidebar__user-name">@UserName</div>
+                <div class="pq-sidebar__user-role">@UserRole</div>
+            </div>
+        </button>
+        @if (_isUserMenuOpen)
+        {
+            <div class="pq-sidebar__menu-backdrop" @onclick="CloseUserMenu" @onclick:stopPropagation="true" aria-hidden="true"></div>
+            <div class="pq-sidebar__user-dropdown" role="menu" @onclick:stopPropagation="true">
+                <div class="pq-sidebar__user-dropdown-header">
+                    <PqAvatar Name="@UserName" Size="sm" />
+                    <div class="pq-sidebar__user-dropdown-meta">
+                        <div class="pq-sidebar__user-dropdown-name">@UserName</div>
+                        <div class="pq-sidebar__user-dropdown-role">@UserRole</div>
+                    </div>
+                </div>
+                <div class="pq-sidebar__user-dropdown-divider"></div>
+                <button class="pq-sidebar__user-dropdown-item" type="button" role="menuitem" @onclick="HandleProfile">Profile</button>
+                <button class="pq-sidebar__user-dropdown-item" type="button" role="menuitem" @onclick="HandleSettings">Settings</button>
+                <div class="pq-sidebar__user-dropdown-divider"></div>
+                <button class="pq-sidebar__user-dropdown-item pq-sidebar__user-dropdown-item--logout" type="button" role="menuitem" @onclick="HandleLogout">Logout</button>
+            </div>
+        }
     </div>
 </div>
 
@@ -36,12 +62,59 @@
 
     [Parameter] public string AppName { get; set; } = "ProQuote";
     [Parameter] public string? LogoSrc { get; set; }
+    [Parameter] public RenderFragment? AppTitle { get; set; }
     [Parameter] public string UserName { get; set; } = string.Empty;
     [Parameter] public string UserRole { get; set; } = string.Empty;
     [Parameter] public List<SidebarNavItem>? NavItems { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public bool IsCollapsed { get; set; }
     [Parameter] public EventCallback<bool> IsCollapsedChanged { get; set; }
+    [Parameter] public EventCallback OnProfile { get; set; }
+    [Parameter] public EventCallback OnSettings { get; set; }
+    [Parameter] public EventCallback OnLogout { get; set; }
+
+    private bool _isUserMenuOpen;
 
     private Task ToggleCollapsed() => IsCollapsedChanged.InvokeAsync(!IsCollapsed);
+
+    private Task HandleSidebarClick()
+    {
+        return ToggleCollapsed();
+    }
+
+    private Task HandleProfile()
+    {
+        _isUserMenuOpen = false;
+        return InvokeUserActionAsync(OnProfile);
+    }
+
+    private Task HandleSettings()
+    {
+        _isUserMenuOpen = false;
+        return InvokeUserActionAsync(OnSettings);
+    }
+
+    private Task HandleLogout()
+    {
+        _isUserMenuOpen = false;
+        return InvokeUserActionAsync(OnLogout);
+    }
+
+    private void ToggleUserMenu()
+    {
+        _isUserMenuOpen = !_isUserMenuOpen;
+    }
+
+    private void CloseUserMenu()
+    {
+        _isUserMenuOpen = false;
+    }
+
+    private async Task InvokeUserActionAsync(EventCallback callback)
+    {
+        if (callback.HasDelegate)
+        {
+            await callback.InvokeAsync(null);
+        }
+    }
 }

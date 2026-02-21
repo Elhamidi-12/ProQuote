@@ -1,0 +1,9 @@
+@page "/admin/profile"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using ProQuote.Infrastructure.Identity
+
+<PageTitle>Profile - ProQuote</PageTitle>
+
+<ProfileContent />

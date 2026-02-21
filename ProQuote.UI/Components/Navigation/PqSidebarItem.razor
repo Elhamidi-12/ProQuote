@@ -1,16 +1,19 @@
 @inject NavigationManager NavigationManager
-<a class="pq-sidebar-item @(IsActive ? "pq-sidebar-item--active" : string.Empty) @(IsCollapsed ? "pq-sidebar-item--collapsed" : string.Empty)"
-   href="@Href"
-   aria-current="@(IsActive ? "page" : null)"
-   aria-label="@Label"
-   title="@(IsCollapsed ? Label : null)">
-    @if (!string.IsNullOrWhiteSpace(Icon))
-    {
-        <i class="pq-sidebar-item__icon bi bi-@Icon" aria-hidden="true"></i>
-    }
-    <span class="pq-sidebar-item__label">@Label</span>
-    @if (BadgeCount.HasValue) { <span class="pq-sidebar-item__badge">@BadgeCount</span> }
-</a>
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+    <a class="pq-sidebar-item @(IsActive ? "pq-sidebar-item--active" : string.Empty) @(IsCollapsed ? "pq-sidebar-item--collapsed" : string.Empty)"
+       href="@Href"
+       aria-current="@(IsActive ? "page" : null)"
+       aria-label="@Label"
+       title="@(IsCollapsed ? Label : null)"
+       @onclick:stopPropagation="true">
+        @if (!string.IsNullOrWhiteSpace(NormalizedIcon))
+        {
+            <i class="pq-sidebar-item__icon bi bi-@NormalizedIcon" aria-hidden="true"></i>
+        }
+        <span class="pq-sidebar-item__label">@Label</span>
+        @if (BadgeCount.HasValue) { <span class="pq-sidebar-item__badge">@BadgeCount</span> }
+    </a>
 
 @code {
     [Parameter] public string Label { get; set; } = string.Empty;
@@ -20,5 +23,49 @@
     [Parameter] public bool Active { get; set; }
     [Parameter] public bool IsCollapsed { get; set; }
 
-    private bool IsActive => Active || NavigationManager.Uri.EndsWith(Href, StringComparison.OrdinalIgnoreCase);
+    private bool IsActive
+    {
+        get
+        {
+            if (Active)
+            {
+                return true;
+            }
+
+            string current = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+            string target = Href.StartsWith('/') ? Href[1..] : Href;
+
+            if (string.IsNullOrWhiteSpace(current) && string.IsNullOrWhiteSpace(target))
+            {
+                return true;
+            }
+
+            string currentNormalized = current.TrimEnd('/');
+            string targetNormalized = target.TrimEnd('/');
+
+            if (string.Equals(currentNormalized, targetNormalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += NavigationChanged;
+    }
+
+    private void NavigationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= NavigationChanged;
+    }
+
+    private string? NormalizedIcon => IconHelper.NormalizeBootstrapIconName(Icon);
 }

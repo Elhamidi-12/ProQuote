@@ -1,15 +1,32 @@
 @inherits LayoutComponentBase
+@using System
+@using System.Linq
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Infrastructure.Identity
+@using ProQuote.Web.Auth
 @inject ThemeService ThemeService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject CustomAuthStateProvider AuthStateProvider
 
 <div class="pq-shell">
     <PqSidebar AppName="ProQuote Supplier"
-               UserName="Supplier User"
-               UserRole="Supplier"
+               LogoSrc="/_content/ProQuote.UI/assets/proquote-logo.svg"
+               UserName="@_userName"
+               UserRole="@_userRole"
                NavItems="_navItems"
                IsCollapsed="_isSidebarCollapsed"
-               IsCollapsedChanged="OnSidebarCollapsedChanged" />
+               IsCollapsedChanged="OnSidebarCollapsedChanged"
+               OnProfile="HandleProfileAsync"
+               OnSettings="HandleSettingsAsync"
+               OnLogout="HandleLogoutAsync">
+        <AppTitle>
+            <span class="pq-sidebar__app-title"><span class="pq-sidebar__app-title-pro" style="color:#FFFFFF">Pro</span><span class="pq-sidebar__app-title-quote" style="color:#3B82F6">Quote</span></span>
+        </AppTitle>
+    </PqSidebar>
     <main class="pq-shell__main @(_isSidebarCollapsed ? "pq-shell__main--collapsed" : string.Empty)">
-        <PqTopBar Title="Supplier Portal" UserName="Supplier User" UserRole="Supplier" NotificationCount="5" OnThemeToggle="ThemeService.ToggleTheme" />
+        <PqTopBar Title="Supplier Portal" NotificationCount="5" OnThemeToggle="ThemeService.ToggleTheme" />
         <section class="pq-shell__content">@Body</section>
     </main>
     <PqToastContainer />
@@ -17,11 +34,83 @@
 
 @code {
     private bool _isSidebarCollapsed;
+    private string _userName = "Supplier User";
+    private string _userRole = "Supplier";
 
     private Task OnSidebarCollapsedChanged(bool isCollapsed)
     {
         _isSidebarCollapsed = isCollapsed;
         return Task.CompletedTask;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserAsync();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task LoadUserAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            UpdateUserFromClaims(authState.User);
+        }
+    }
+
+    private void UpdateUserFromClaims(ClaimsPrincipal user)
+    {
+        string? name = user.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            _userName = name;
+        }
+
+        Claim? roleClaim = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
+        if (roleClaim is not null && !string.IsNullOrWhiteSpace(roleClaim.Value))
+        {
+            _userRole = roleClaim.Value;
+        }
+    }
+
+    private Task HandleProfileAsync()
+    {
+        NavigationManager.NavigateTo(GetProfileRoute());
+        return Task.CompletedTask;
+    }
+
+    private Task HandleSettingsAsync()
+    {
+        NavigationManager.NavigateTo(GetSettingsRoute());
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleLogoutAsync()
+    {
+        await AuthStateProvider.MarkUserAsLoggedOutAsync();
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private string GetProfileRoute()
+    {
+        return _userRole switch
+        {
+            ApplicationRoles.Admin => "/admin/profile",
+            ApplicationRoles.Buyer => "/buyer/profile",
+            ApplicationRoles.Supplier => "/supplier/profile",
+        _ => "/profile"
+        };
+    }
+
+    private string GetSettingsRoute()
+    {
+        return _userRole switch
+        {
+            ApplicationRoles.Admin => "/admin/settings",
+            ApplicationRoles.Buyer => "/buyer/settings",
+            ApplicationRoles.Supplier => "/supplier/settings",
+            _ => "/settings"
+        };
     }
 
     private readonly List<PqSidebar.SidebarNavItem> _navItems =

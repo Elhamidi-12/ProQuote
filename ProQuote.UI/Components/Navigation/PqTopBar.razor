@@ -1,3 +1,6 @@
+@inject ThemeService ThemeService
+@implements IDisposable
+
 <div class="pq-topbar">
     <div class="pq-topbar__left">
         <h1 class="pq-topbar__title">@Title</h1>
@@ -5,27 +8,41 @@
     <div class="pq-topbar__right">
         @if (ShowSearch) { <PqSearchBar Placeholder="Search..." /> }
         <button class="pq-topbar__icon-btn" type="button" @onclick="OnThemeToggle" aria-label="Toggle theme">
-            <i class="bi bi-moon-stars"></i>
+            <i class="bi @(ThemeService.IsDarkMode ? "bi-sun" : "bi-moon-stars")"></i>
         </button>
         <button class="pq-topbar__icon-btn" type="button" aria-label="Notifications">
             <i class="bi bi-bell"></i>
             <span class="pq-topbar__count">@NotificationCount</span>
         </button>
-        <div class="pq-topbar__user">
-            <PqAvatar Name="@UserName" Size="sm" />
-            <div>
-                <div>@UserName</div>
-                <div class="pq-topbar__role">@UserRole</div>
+        @if (ShowUserAvatar)
+        {
+            <div class="pq-topbar__avatar">
+                <PqAvatar Name="@UserName" Size="sm" />
             </div>
-        </div>
+        }
     </div>
 </div>
 
 @code {
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+    }
+
+    private void HandleThemeChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public bool ShowSearch { get; set; }
     [Parameter] public int NotificationCount { get; set; }
+    [Parameter] public bool ShowUserAvatar { get; set; }
     [Parameter] public string UserName { get; set; } = string.Empty;
-    [Parameter] public string UserRole { get; set; } = string.Empty;
     [Parameter] public EventCallback OnThemeToggle { get; set; }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
 }

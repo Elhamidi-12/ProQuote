@@ -15,9 +15,9 @@
                 }
             </div>
             <div class="pq-stat-card__icon" style="--pq-stat-icon-color:@ResolvedIconColor;">
-                @if (!string.IsNullOrWhiteSpace(Icon))
+                @if (!string.IsNullOrWhiteSpace(NormalizedIcon))
                 {
-                    @((MarkupString)Icon)
+                    <i class="bi bi-@NormalizedIcon" aria-hidden="true"></i>
                 }
             </div>
         </div>
@@ -30,6 +30,7 @@
     [Parameter] public string? Trend { get; set; }
     [Parameter] public bool? TrendUp { get; set; }
     [Parameter] public string? Icon { get; set; }
+    private string? NormalizedIcon => IconHelper.NormalizeBootstrapIconName(Icon);
     [Parameter] public string? IconColor { get; set; }
     [Parameter] public bool Loading { get; set; }
 

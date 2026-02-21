@@ -1,0 +1,9 @@
+@page "/supplier/profile"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using ProQuote.Infrastructure.Identity
+
+<PageTitle>Profile - ProQuote</PageTitle>
+
+<ProfileContent />

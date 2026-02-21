@@ -4,8 +4,14 @@
         @foreach (var item in Items)
         {
             bool isActive = string.Equals(item.Value, ActiveTab, StringComparison.OrdinalIgnoreCase);
+            var iconName = IconHelper.NormalizeBootstrapIconName(item.Icon);
             <button class="pq-tabs__item @(isActive ? "pq-tabs__item--active" : string.Empty)" disabled="@item.Disabled" role="tab" aria-selected="@isActive" @onclick="() => SelectTab(item.Value)">
-                @if (!string.IsNullOrWhiteSpace(item.Icon)) { <span>@((MarkupString)item.Icon)</span> }
+                @if (!string.IsNullOrWhiteSpace(iconName))
+                {
+                    <span class="pq-tabs__icon" aria-hidden="true">
+                        <i class="bi bi-@iconName"></i>
+                    </span>
+                }
                 <span>@item.Label</span>
                 @if (item.Count.HasValue) { <span class="pq-tabs__count">@item.Count</span> }
             </button>

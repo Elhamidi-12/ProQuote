@@ -1,4 +1,5 @@
 .pq-empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--pq-space-16) var(--pq-space-8); }
 .pq-empty-state__icon { width: var(--pq-space-16); height: var(--pq-space-16); border-radius: var(--pq-radius-xl); background: var(--pq-bg-surface-2); color: var(--pq-text-muted); display: inline-flex; align-items: center; justify-content: center; font-size: var(--pq-text-3xl); }
+.pq-empty-state__icon i { font-size: var(--pq-text-3xl); line-height: 1; }
 .pq-empty-state__title { font-size: var(--pq-text-lg); font-weight: var(--pq-font-semibold); color: var(--pq-text-primary); margin-top: var(--pq-space-4); }
 .pq-empty-state__description { font-size: var(--pq-text-sm); color: var(--pq-text-secondary); max-width: 360px; margin-top: var(--pq-space-2); margin-bottom: var(--pq-space-5); }

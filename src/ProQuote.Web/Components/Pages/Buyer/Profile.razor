@@ -1,0 +1,9 @@
+@page "/buyer/profile"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+@using ProQuote.Infrastructure.Identity
+
+<PageTitle>Profile - ProQuote</PageTitle>
+
+<ProfileContent />

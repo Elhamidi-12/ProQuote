@@ -1,5 +1,10 @@
 <div class="pq-empty-state">
-    <div class="pq-empty-state__icon">@((MarkupString)Icon)</div>
+    <div class="pq-empty-state__icon">
+        @if (!string.IsNullOrWhiteSpace(NormalizedIcon))
+        {
+            <i class="bi bi-@NormalizedIcon" aria-hidden="true"></i>
+        }
+    </div>
     <div class="pq-empty-state__title">@Title</div>
     <div class="pq-empty-state__description">@Description</div>
     @if (!string.IsNullOrWhiteSpace(ActionLabel))
@@ -8,9 +13,11 @@
     }
 </div>
 @code {
-    [Parameter] public string Icon { get; set; } = "•";
+    [Parameter] public string Icon { get; set; } = "info-circle";
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string Description { get; set; } = string.Empty;
     [Parameter] public string? ActionLabel { get; set; }
     [Parameter] public EventCallback OnAction { get; set; }
+
+    private string? NormalizedIcon => IconHelper.NormalizeBootstrapIconName(Icon);
 }

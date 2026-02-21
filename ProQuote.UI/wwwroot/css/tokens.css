@@ -159,4 +159,11 @@
   --pq-shadow-md: 0 4px 6px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.2);
   --pq-shadow-lg: 0 10px 15px rgba(0,0,0,0.4), 0 4px 6px rgba(0,0,0,0.2);
   --pq-shadow-focus: 0 0 0 3px rgba(96,165,250,0.3);
+  --pq-sidebar-bg: #0B1220;
+  --pq-sidebar-text: #E2E8F0;
+  --pq-sidebar-text-muted: #94A3B8;
+  --pq-sidebar-active-bg: rgba(59, 130, 246, 0.2);
+  --pq-sidebar-active-text: #BFDBFE;
+  --pq-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --pq-sidebar-border: rgba(255, 255, 255, 0.08);
 }

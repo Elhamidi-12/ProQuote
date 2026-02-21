@@ -9,10 +9,10 @@
     <h1 class="pq-section-title">Admin Dashboard</h1>
 
     <div class="dashboard-grid">
-        <PqStatCard Title="Total Users" Value="@_stats.TotalUsers.ToString()" />
-        <PqStatCard Title="Pending Suppliers" Value="@_stats.PendingSuppliers.ToString()" />
-        <PqStatCard Title="Active RFQs" Value="@_stats.ActiveRfqs.ToString()" />
-        <PqStatCard Title="Categories" Value="@_stats.TotalCategories.ToString()" />
+        <PqStatCard Title="Total Users" Value="@_stats.TotalUsers.ToString()" Icon="people" />
+            <PqStatCard Title="Pending Suppliers" Value="@_stats.PendingSuppliers.ToString()" Icon="person-x" />
+        <PqStatCard Title="Active RFQs" Value="@_stats.ActiveRfqs.ToString()" Icon="list-task" />
+        <PqStatCard Title="Categories" Value="@_stats.TotalCategories.ToString()" Icon="tags" />
     </div>
 
     <PqCard>
