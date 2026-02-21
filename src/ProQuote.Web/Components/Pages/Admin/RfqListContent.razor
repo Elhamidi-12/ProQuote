@@ -1,0 +1,309 @@
+@using Microsoft.EntityFrameworkCore
+@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IAuditLogService AuditLogService
+@inject ToastService ToastService
+
+<h1 class="pq-section-title">@Title</h1>
+<PqCard>
+    <div class="pq-flex pq-gap-2 pq-items-end" style="flex-wrap:wrap;">
+        <div style="min-width:260px;flex:1;">
+            <PqInput Label="Search"
+                     Value="@_searchTerm"
+                     ValueChanged="@(v => _searchTerm = v ?? string.Empty)"
+                     Placeholder="Reference or title..."
+                     Disabled="_isLoading" />
+        </div>
+        <div style="min-width:220px;flex:1;">
+            <PqSelect Label="Status"
+                      Value="@_statusFilter"
+                      ValueChanged="@(v => _statusFilter = v ?? string.Empty)"
+                      Options="_statusOptions"
+                      Placeholder="All statuses"
+                      Disabled="_isLoading" />
+        </div>
+        <PqButton Variant="secondary" OnClick="LoadAsync" Loading="_isLoading">Apply</PqButton>
+        <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">Loading RFQs...</p>
+    }
+    else if (_rfqs.Count == 0)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">No RFQs found.</p>
+    }
+    else
+    {
+        <div style="margin-top:var(--pq-space-3);">
+            <PqTable Headers="_headers">
+                @foreach (Domain.Entities.Rfq rfq in _rfqs)
+                {
+                    <tr>
+                        <td>@rfq.ReferenceNumber</td>
+                        <td>@rfq.Title</td>
+                        <td>@(rfq.Category?.Name ?? "-")</td>
+                        <td>@GetBuyerLabel(rfq)</td>
+                        <td>@rfq.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                        <td>@rfq.Quotes.Count</td>
+                        <td><PqBadge Variant="@GetStatusVariant(rfq.Status)">@rfq.Status</PqBadge></td>
+                        <td>
+                            <div style="display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
+                                @if (CanMoveToEvaluation(rfq))
+                                {
+                                    <PqButton Variant="secondary"
+                                              Size="sm"
+                                              OnClick="@(() => MoveToEvaluationAsync(rfq.Id))"
+                                              Disabled="_busyRfqId == rfq.Id">
+                                        Under Eval
+                                    </PqButton>
+                                }
+                                @if (CanClose(rfq))
+                                {
+                                    <PqButton Variant="primary"
+                                              Size="sm"
+                                              OnClick="@(() => CloseRfqAsync(rfq.Id))"
+                                              Disabled="_busyRfqId == rfq.Id">
+                                        Close
+                                    </PqButton>
+                                }
+                                @if (rfq.CanBeCancelled())
+                                {
+                                    <PqButton Variant="danger"
+                                              Size="sm"
+                                              OnClick="@(() => CancelRfqAsync(rfq.Id))"
+                                              Disabled="_busyRfqId == rfq.Id">
+                                        Cancel
+                                    </PqButton>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </PqTable>
+        </div>
+    }
+</PqCard>
+
+@code {
+    [Parameter] public string Title { get; set; } = "RFQs";
+    [Parameter] public bool ActiveOnly { get; set; }
+
+    private bool _isLoading = true;
+    private Guid? _busyRfqId;
+    private string _searchTerm = string.Empty;
+    private string _statusFilter = string.Empty;
+    private List<Domain.Entities.Rfq> _rfqs = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Reference", Field = "reference", Width = "130px" },
+        new() { Label = "Title", Field = "title" },
+        new() { Label = "Category", Field = "category", Width = "160px" },
+        new() { Label = "Buyer", Field = "buyer", Width = "180px" },
+        new() { Label = "Deadline", Field = "deadline", Width = "130px" },
+        new() { Label = "Quotes", Field = "quotes", Width = "80px" },
+        new() { Label = "Status", Field = "status", Width = "140px" },
+        new() { Label = "Actions", Field = "actions", Width = "290px" }
+    ];
+
+    private readonly List<PqSelect.SelectOption> _statusOptions =
+    [
+        new() { Value = nameof(Domain.Enums.RfqStatus.Draft), Label = "Draft" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.Published), Label = "Published" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.QuotesReceived), Label = "Quotes Received" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.UnderEvaluation), Label = "Under Evaluation" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.Awarded), Label = "Awarded" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.Closed), Label = "Closed" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.Cancelled), Label = "Cancelled" },
+        new() { Value = nameof(Domain.Enums.RfqStatus.Expired), Label = "Expired" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            IQueryable<Domain.Entities.Rfq> query = DbContext.Rfqs
+                .Include(r => r.Category)
+                .Include(r => r.Buyer)
+                .Include(r => r.Quotes)
+                .AsQueryable();
+
+            if (ActiveOnly)
+            {
+                query = query.Where(r =>
+                    r.Status == Domain.Enums.RfqStatus.Published ||
+                    r.Status == Domain.Enums.RfqStatus.QuotesReceived ||
+                    r.Status == Domain.Enums.RfqStatus.UnderEvaluation);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_searchTerm))
+            {
+                string term = _searchTerm.Trim();
+                query = query.Where(r => r.ReferenceNumber.Contains(term) || r.Title.Contains(term));
+            }
+
+            if (Enum.TryParse(_statusFilter, out Domain.Enums.RfqStatus parsedStatus))
+            {
+                query = query.Where(r => r.Status == parsedStatus);
+            }
+
+            _rfqs = await query
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load RFQs");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        _searchTerm = string.Empty;
+        _statusFilter = string.Empty;
+        await LoadAsync();
+    }
+
+    private async Task MoveToEvaluationAsync(Guid rfqId)
+    {
+        await UpdateStatusAsync(
+            rfqId,
+            Domain.Enums.RfqStatus.UnderEvaluation,
+            "AdminMarkedUnderEvaluation",
+            "RFQ moved to under evaluation by admin.");
+    }
+
+    private async Task CloseRfqAsync(Guid rfqId)
+    {
+        await UpdateStatusAsync(
+            rfqId,
+            Domain.Enums.RfqStatus.Closed,
+            "AdminClosedRfq",
+            "RFQ closed by admin.");
+    }
+
+    private async Task CancelRfqAsync(Guid rfqId)
+    {
+        Domain.Entities.Rfq? rfq = await DbContext.Rfqs.FirstOrDefaultAsync(r => r.Id == rfqId);
+        if (rfq == null || !rfq.CanBeCancelled())
+        {
+            return;
+        }
+
+        _busyRfqId = rfqId;
+        try
+        {
+            rfq.Status = Domain.Enums.RfqStatus.Cancelled;
+            rfq.CancellationReason = "Cancelled by admin.";
+            DbContext.Rfqs.Update(rfq);
+            await DbContext.SaveChangesAsync();
+
+            await AuditLogService.LogRfqActionAsync(
+                rfq.Id,
+                rfq.BuyerId,
+                "AdminCancelledRfq",
+                "Rfq",
+                rfq.Id,
+                details: "RFQ cancelled by admin.");
+
+            ToastService.ShowSuccess("RFQ cancelled.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to cancel RFQ");
+        }
+        finally
+        {
+            _busyRfqId = null;
+        }
+    }
+
+    private async Task UpdateStatusAsync(
+        Guid rfqId,
+        Domain.Enums.RfqStatus status,
+        string auditAction,
+        string details)
+    {
+        Domain.Entities.Rfq? rfq = await DbContext.Rfqs.FirstOrDefaultAsync(r => r.Id == rfqId);
+        if (rfq == null)
+        {
+            return;
+        }
+
+        _busyRfqId = rfqId;
+        try
+        {
+            rfq.Status = status;
+            if (status == Domain.Enums.RfqStatus.Closed)
+            {
+                rfq.ClosedAt = DateTime.UtcNow;
+            }
+
+            DbContext.Rfqs.Update(rfq);
+            await DbContext.SaveChangesAsync();
+
+            await AuditLogService.LogRfqActionAsync(
+                rfq.Id,
+                rfq.BuyerId,
+                auditAction,
+                "Rfq",
+                rfq.Id,
+                details: details);
+
+            ToastService.ShowSuccess($"RFQ moved to {status}.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to update RFQ status");
+        }
+        finally
+        {
+            _busyRfqId = null;
+        }
+    }
+
+    private static bool CanMoveToEvaluation(Domain.Entities.Rfq rfq)
+    {
+        return rfq.Status == Domain.Enums.RfqStatus.Published || rfq.Status == Domain.Enums.RfqStatus.QuotesReceived;
+    }
+
+    private static bool CanClose(Domain.Entities.Rfq rfq)
+    {
+        return rfq.Status == Domain.Enums.RfqStatus.UnderEvaluation || rfq.Status == Domain.Enums.RfqStatus.Awarded;
+    }
+
+    private static string GetBuyerLabel(Domain.Entities.Rfq rfq)
+    {
+        string fullName = $"{rfq.Buyer.FirstName} {rfq.Buyer.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? rfq.Buyer.Email : fullName;
+    }
+
+    private static string GetStatusVariant(Domain.Enums.RfqStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.RfqStatus.Draft => "draft",
+            Domain.Enums.RfqStatus.Published => "published",
+            Domain.Enums.RfqStatus.QuotesReceived => "pending",
+            Domain.Enums.RfqStatus.UnderEvaluation => "pending",
+            Domain.Enums.RfqStatus.Awarded => "awarded",
+            Domain.Enums.RfqStatus.Closed => "closed",
+            Domain.Enums.RfqStatus.Cancelled => "cancelled",
+            Domain.Enums.RfqStatus.Expired => "expired",
+            _ => "default"
+        };
+    }
+}
