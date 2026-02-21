@@ -101,6 +101,21 @@ else
                 {
                     <p class="pq-body-sm" style="margin-top:var(--pq-space-2);"><strong>Buyer Notes:</strong> @SelectedQuote.BuyerNotes</p>
                 }
+                @if (SelectedQuote.Documents.Count > 0)
+                {
+                    <div style="margin-top:var(--pq-space-3);">
+                        <p class="pq-body-sm"><strong>Supporting Documents</strong></p>
+                        <ul class="pq-body-sm" style="margin-top:var(--pq-space-2);padding-left:1rem;">
+                            @foreach (BuyerQuoteComparisonDocumentDto doc in SelectedQuote.Documents)
+                            {
+                                <li>
+                                    <a href="@doc.FilePath" target="_blank">@doc.FileName</a>
+                                    <span> (@FormatFileSize(doc.FileSize))</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
 
                 <div style="margin-top:var(--pq-space-3);">
                     <PqTable Headers="_priceHeaders">
@@ -302,6 +317,20 @@ else
         }
 
         return quote.Status.ToString();
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] sizes = ["B", "KB", "MB", "GB"];
+        double size = bytes;
+        int order = 0;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
     }
 
     public void Dispose()

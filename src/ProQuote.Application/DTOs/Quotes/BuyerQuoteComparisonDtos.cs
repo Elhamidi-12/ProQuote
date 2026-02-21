@@ -187,6 +187,12 @@ public sealed class BuyerQuoteComparisonItemDto
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies Blazor/API serialization.")]
     public List<BuyerQuoteComparisonPriceDto> Prices { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets quote supporting documents.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies Blazor/API serialization.")]
+    public List<BuyerQuoteComparisonDocumentDto> Documents { get; set; } = [];
 }
 
 /// <summary>
@@ -208,6 +214,37 @@ public sealed class BuyerQuoteComparisonPriceDto
     /// Gets or sets line total price.
     /// </summary>
     public decimal TotalPrice { get; set; }
+}
+
+/// <summary>
+/// Quote document payload inside comparison response.
+/// </summary>
+public sealed class BuyerQuoteComparisonDocumentDto
+{
+    /// <summary>
+    /// Gets or sets document identifier.
+    /// </summary>
+    public Guid DocumentId { get; set; }
+
+    /// <summary>
+    /// Gets or sets original file name.
+    /// </summary>
+    public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets content type.
+    /// </summary>
+    public string ContentType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets file size bytes.
+    /// </summary>
+    public long FileSize { get; set; }
+
+    /// <summary>
+    /// Gets or sets public file path.
+    /// </summary>
+    public string FilePath { get; set; } = string.Empty;
 }
 
 /// <summary>

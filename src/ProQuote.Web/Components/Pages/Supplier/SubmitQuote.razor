@@ -4,8 +4,12 @@
 @attribute [Authorize(Roles = ApplicationRoles.Supplier)]
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
 @using ProQuote.Application.DTOs.Quotes
 @inject IQuoteSubmissionService QuoteSubmissionService
+@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IWebHostEnvironment HostEnvironment
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
@@ -86,6 +90,51 @@ else
             </div>
         </PqCard>
 
+        <PqCard>
+            <h2 class="pq-card-title">Supporting Documents</h2>
+            <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">
+                Attach optional quote files (proposal, certifications, datasheets). Max file size: 10 MB.
+            </p>
+            <div style="margin-top:var(--pq-space-3);">
+                <InputFile OnChange="HandleFilesSelectedAsync" multiple />
+            </div>
+
+            @if (_pendingUploads.Count > 0)
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <p class="pq-body-sm"><strong>Pending uploads</strong></p>
+                    <ul class="pq-body-sm" style="margin-top:var(--pq-space-2);padding-left:1rem;">
+                        @foreach (PendingUpload pending in _pendingUploads)
+                        {
+                            <li>@pending.File.Name (@FormatFileSize(pending.File.Size))</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (_existingDocuments.Count > 0)
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <p class="pq-body-sm"><strong>Attached documents</strong></p>
+                    <ul class="pq-body-sm" style="margin-top:var(--pq-space-2);padding-left:1rem;">
+                        @foreach (Domain.Entities.QuoteDocument doc in _existingDocuments)
+                        {
+                            <li style="display:flex;align-items:center;gap:var(--pq-space-2);flex-wrap:wrap;">
+                                <a href="@doc.FilePath" target="_blank">@doc.FileName</a>
+                                <span>(@FormatFileSize(doc.FileSize))</span>
+                                <PqButton Variant="danger"
+                                          Size="sm"
+                                          OnClick="@(() => RemoveDocumentAsync(doc.Id))"
+                                          Disabled="_isSaving">
+                                    Remove
+                                </PqButton>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        </PqCard>
+
         <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;flex-wrap:wrap;">
             <a href="/supplier/quotes"><PqButton Variant="ghost">Cancel</PqButton></a>
             <PqButton Variant="primary" OnClick="SaveQuoteAsync" Loading="_isSaving">Submit Quote</PqButton>
@@ -106,6 +155,9 @@ else
     private string? _paymentTerms;
     private string? _notes;
     private readonly Dictionary<Guid, string> _unitPrices = [];
+    private List<PendingUpload> _pendingUploads = [];
+    private List<Domain.Entities.QuoteDocument> _existingDocuments = [];
+    private const long MaxUploadBytes = 10 * 1024 * 1024;
 
     private readonly List<PqTable.TableColumn> _lineItemHeaders =
     [
@@ -148,6 +200,8 @@ else
             {
                 _unitPrices[lineItem.LineItemId] = lineItem.UnitPrice.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
+
+            await LoadExistingDocumentsAsync(_editor.QuoteId);
         }
         catch (Exception ex)
         {
@@ -183,6 +237,20 @@ else
         }
 
         return _editor.LineItems.Sum(GetLineTotal);
+    }
+
+    private async Task LoadExistingDocumentsAsync(Guid? quoteId)
+    {
+        if (!quoteId.HasValue)
+        {
+            _existingDocuments = [];
+            return;
+        }
+
+        _existingDocuments = await DbContext.QuoteDocuments
+            .Where(d => d.QuoteId == quoteId.Value)
+            .OrderBy(d => d.DisplayOrder)
+            .ToListAsync();
     }
 
     private async Task SaveQuoteAsync()
@@ -240,6 +308,14 @@ else
                 return;
             }
 
+            if (!response.QuoteId.HasValue)
+            {
+                ToastService.ShowError("Quote saved but missing quote identifier.");
+                return;
+            }
+
+            await SavePendingDocumentsAsync(response.QuoteId.Value);
+
             ToastService.ShowSuccess("Quote submitted successfully.");
             NavigationManager.NavigateTo("/supplier/quotes");
         }
@@ -251,6 +327,110 @@ else
         {
             _isSaving = false;
         }
+    }
+
+    private async Task HandleFilesSelectedAsync(InputFileChangeEventArgs args)
+    {
+        IReadOnlyList<IBrowserFile> files = args.GetMultipleFiles();
+        foreach (IBrowserFile file in files)
+        {
+            if (file.Size <= 0)
+            {
+                continue;
+            }
+
+            if (file.Size > MaxUploadBytes)
+            {
+                ToastService.ShowError($"{file.Name} exceeds 10 MB and was skipped.");
+                continue;
+            }
+
+            _pendingUploads.Add(new PendingUpload(file));
+        }
+    }
+
+    private async Task SavePendingDocumentsAsync(Guid quoteId)
+    {
+        if (_pendingUploads.Count == 0)
+        {
+            return;
+        }
+
+        string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
+            ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")
+            : HostEnvironment.WebRootPath;
+        string targetDir = Path.Combine(webRoot, "uploads", "quotes", quoteId.ToString("N"));
+        Directory.CreateDirectory(targetDir);
+
+        int displayOrder = _existingDocuments.Count > 0 ? _existingDocuments.Max(d => d.DisplayOrder) + 1 : 1;
+        List<Domain.Entities.QuoteDocument> newDocuments = [];
+
+        foreach (PendingUpload upload in _pendingUploads)
+        {
+            IBrowserFile file = upload.File;
+            string extension = Path.GetExtension(file.Name);
+            string storedFileName = $"{Guid.NewGuid():N}{extension}";
+            string physicalPath = Path.Combine(targetDir, storedFileName);
+
+            await using Stream sourceStream = file.OpenReadStream(MaxUploadBytes);
+            await using FileStream destinationStream = File.Create(physicalPath);
+            await sourceStream.CopyToAsync(destinationStream);
+
+            string relativeFilePath = $"/uploads/quotes/{quoteId:N}/{storedFileName}";
+            Domain.Entities.QuoteDocument document = new()
+            {
+                Id = Guid.NewGuid(),
+                QuoteId = quoteId,
+                FileName = Path.GetFileName(file.Name),
+                StoredFileName = storedFileName,
+                ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                FileSize = file.Size,
+                FilePath = relativeFilePath,
+                DisplayOrder = displayOrder++,
+                UploadedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            newDocuments.Add(document);
+        }
+
+        if (newDocuments.Count > 0)
+        {
+            await DbContext.QuoteDocuments.AddRangeAsync(newDocuments);
+            await DbContext.SaveChangesAsync();
+            _existingDocuments.AddRange(newDocuments);
+        }
+
+        _pendingUploads.Clear();
+    }
+
+    private async Task RemoveDocumentAsync(Guid documentId)
+    {
+        Domain.Entities.QuoteDocument? existing = await DbContext.QuoteDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+        if (existing == null)
+        {
+            return;
+        }
+
+        DbContext.QuoteDocuments.Remove(existing);
+        await DbContext.SaveChangesAsync();
+
+        string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
+            ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")
+            : HostEnvironment.WebRootPath;
+        string relativePath = existing.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+        string physicalPath = Path.Combine(webRoot, relativePath);
+        if (File.Exists(physicalPath))
+        {
+            File.Delete(physicalPath);
+        }
+
+        _existingDocuments = _existingDocuments
+            .Where(d => d.Id != documentId)
+            .OrderBy(d => d.DisplayOrder)
+            .ToList();
+
+        ToastService.ShowSuccess("Document removed.");
     }
 
     private async Task<Guid?> GetCurrentUserIdAsync()
@@ -274,4 +454,20 @@ else
 
         return 0m;
     }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] sizes = ["B", "KB", "MB", "GB"];
+        double size = bytes;
+        int order = 0;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
+    }
+
+    private sealed record PendingUpload(IBrowserFile File);
 }

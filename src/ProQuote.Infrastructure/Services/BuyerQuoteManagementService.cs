@@ -60,6 +60,8 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
                 .ThenInclude(q => q.Supplier)
             .Include(r => r.Quotes)
                 .ThenInclude(q => q.LineItems)
+            .Include(r => r.Quotes)
+                .ThenInclude(q => q.Documents.OrderBy(d => d.DisplayOrder))
             .FirstOrDefaultAsync(r => r.Id == rfqId && r.BuyerId == buyerUserId);
 
         if (rfq == null)
@@ -115,6 +117,17 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
                         LineItemId = li.LineItemId,
                         UnitPrice = li.UnitPrice,
                         TotalPrice = li.TotalPrice
+                    })
+                    .ToList(),
+                Documents = q.Documents
+                    .OrderBy(d => d.DisplayOrder)
+                    .Select(d => new BuyerQuoteComparisonDocumentDto
+                    {
+                        DocumentId = d.Id,
+                        FileName = d.FileName,
+                        ContentType = d.ContentType,
+                        FileSize = d.FileSize,
+                        FilePath = d.FilePath
                     })
                     .ToList()
             }).ToList()
