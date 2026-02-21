@@ -2,10 +2,259 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using Microsoft.EntityFrameworkCore
+@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject ToastService ToastService
 
 <PageTitle>Admin Reports - ProQuote</PageTitle>
 
-<h1 class="pq-section-title">Reports</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for reporting dashboards.</p>
-</PqCard>
+<div class="pq-flex pq-flex-col pq-gap-4">
+    <h1 class="pq-section-title">Reports</h1>
+
+    @if (_isLoading)
+    {
+        <PqCard>
+            <p class="pq-body-sm">Loading report metrics...</p>
+        </PqCard>
+    }
+    else
+    {
+        <div class="dashboard-grid">
+            <PqStatCard Title="Total RFQs" Value="@_stats.TotalRfqs.ToString()" Icon="file-earmark-text" />
+            <PqStatCard Title="Open RFQs" Value="@_stats.OpenRfqs.ToString()" Icon="lightning-charge" />
+            <PqStatCard Title="Awarded RFQs" Value="@_stats.AwardedRfqs.ToString()" Icon="trophy" />
+            <PqStatCard Title="Closed RFQs" Value="@_stats.ClosedRfqs.ToString()" Icon="check2-square" />
+            <PqStatCard Title="Quotes Submitted" Value="@_stats.TotalQuotes.ToString()" Icon="receipt" />
+            <PqStatCard Title="Awarded Quotes" Value="@_stats.AwardedQuotes.ToString()" Icon="patch-check" />
+            <PqStatCard Title="Approved Suppliers" Value="@_stats.ApprovedSuppliers.ToString()" Icon="building-check" />
+            <PqStatCard Title="Pending Suppliers" Value="@_stats.PendingSuppliers.ToString()" Icon="hourglass-split" />
+        </div>
+
+        <div class="dashboard-grid">
+            <PqCard>
+                <h2 class="pq-card-title">RFQ Status Mix</h2>
+                <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+                    <li class="pq-body-sm">Draft: @_stats.DraftRfqs</li>
+                    <li class="pq-body-sm">Published: @_stats.PublishedRfqs</li>
+                    <li class="pq-body-sm">Quotes Received: @_stats.QuotesReceivedRfqs</li>
+                    <li class="pq-body-sm">Under Evaluation: @_stats.UnderEvaluationRfqs</li>
+                    <li class="pq-body-sm">Cancelled: @_stats.CancelledRfqs</li>
+                    <li class="pq-body-sm">Expired: @_stats.ExpiredRfqs</li>
+                </ul>
+            </PqCard>
+
+            <PqCard>
+                <h2 class="pq-card-title">Commercial Snapshot</h2>
+                <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+                    <li class="pq-body-sm">Total Quoted Value: @_stats.TotalQuotedValue.ToString("N2")</li>
+                    <li class="pq-body-sm">Awarded Quote Value: @_stats.TotalAwardedValue.ToString("N2")</li>
+                    <li class="pq-body-sm">Average Quote Value: @_stats.AverageQuoteValue.ToString("N2")</li>
+                    <li class="pq-body-sm">Avg. Quotes per RFQ: @_stats.AverageQuotesPerRfq.ToString("N2")</li>
+                    <li class="pq-body-sm">Invitations Sent: @_stats.TotalInvitations</li>
+                    <li class="pq-body-sm">Quote Conversion Rate: @_stats.QuoteConversionRate.ToString("N1")%</li>
+                </ul>
+            </PqCard>
+        </div>
+
+        <PqCard>
+            <h2 class="pq-card-title">Recent RFQs</h2>
+            @if (_recentRfqs.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No RFQs available.</p>
+            }
+            else
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqTable Headers="_rfqHeaders">
+                        @foreach (Domain.Entities.Rfq rfq in _recentRfqs)
+                        {
+                            <tr>
+                                <td>@rfq.ReferenceNumber</td>
+                                <td>@rfq.Title</td>
+                                <td>@(rfq.Category?.Name ?? "-")</td>
+                                <td>@GetBuyerLabel(rfq)</td>
+                                <td><PqBadge Variant="@GetStatusVariant(rfq.Status)">@rfq.Status</PqBadge></td>
+                                <td>@rfq.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                    </PqTable>
+                </div>
+            }
+        </PqCard>
+
+        <PqCard>
+            <h2 class="pq-card-title">Recent Award Decisions</h2>
+            @if (_recentAwards.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No awarded quotes yet.</p>
+            }
+            else
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqTable Headers="_awardHeaders">
+                        @foreach (Domain.Entities.Quote quote in _recentAwards)
+                        {
+                            <tr>
+                                <td>@quote.Rfq.ReferenceNumber</td>
+                                <td>@quote.Supplier.CompanyName</td>
+                                <td>@quote.TotalAmount.ToString("N2")</td>
+                                <td>@quote.SubmittedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                                <td>@(quote.Rfq.AwardedAt.HasValue ? quote.Rfq.AwardedAt.Value.ToLocalTime().ToString("MMM dd, yyyy") : "-")</td>
+                            </tr>
+                        }
+                    </PqTable>
+                </div>
+            }
+        </PqCard>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private ReportStats _stats = new();
+    private List<Domain.Entities.Rfq> _recentRfqs = [];
+    private List<Domain.Entities.Quote> _recentAwards = [];
+
+    private readonly List<PqTable.TableColumn> _rfqHeaders =
+    [
+        new() { Label = "Reference", Field = "reference", Width = "130px" },
+        new() { Label = "Title", Field = "title" },
+        new() { Label = "Category", Field = "category", Width = "170px" },
+        new() { Label = "Buyer", Field = "buyer", Width = "180px" },
+        new() { Label = "Status", Field = "status", Width = "150px" },
+        new() { Label = "Created", Field = "created", Width = "130px" }
+    ];
+
+    private readonly List<PqTable.TableColumn> _awardHeaders =
+    [
+        new() { Label = "RFQ", Field = "rfq", Width = "130px" },
+        new() { Label = "Awarded Supplier", Field = "supplier" },
+        new() { Label = "Amount", Field = "amount", Width = "130px" },
+        new() { Label = "Submitted", Field = "submitted", Width = "130px" },
+        new() { Label = "Awarded", Field = "awarded", Width = "130px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            List<Domain.Entities.Rfq> rfqs = await DbContext.Rfqs
+                .Include(r => r.Category)
+                .Include(r => r.Buyer)
+                .Include(r => r.Quotes)
+                .Include(r => r.Invitations)
+                .ToListAsync();
+
+            List<Domain.Entities.Quote> quotes = await DbContext.Quotes
+                .Include(q => q.Rfq)
+                .Include(q => q.Supplier)
+                .ToListAsync();
+
+            List<Domain.Entities.Supplier> suppliers = await DbContext.Suppliers.ToListAsync();
+
+            int totalRfqs = rfqs.Count;
+            int openRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Published ||
+                                           r.Status == Domain.Enums.RfqStatus.QuotesReceived ||
+                                           r.Status == Domain.Enums.RfqStatus.UnderEvaluation);
+            int totalQuotes = quotes.Count;
+            int totalInvitations = rfqs.Sum(r => r.Invitations.Count);
+            decimal totalQuotedValue = quotes.Sum(q => q.TotalAmount);
+            decimal totalAwardedValue = quotes.Where(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded).Sum(q => q.TotalAmount);
+
+            _stats = new ReportStats
+            {
+                TotalRfqs = totalRfqs,
+                OpenRfqs = openRfqs,
+                AwardedRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Awarded),
+                ClosedRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Closed),
+                DraftRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Draft),
+                PublishedRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Published),
+                QuotesReceivedRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.QuotesReceived),
+                UnderEvaluationRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.UnderEvaluation),
+                CancelledRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Cancelled),
+                ExpiredRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Expired),
+                TotalQuotes = totalQuotes,
+                AwardedQuotes = quotes.Count(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded),
+                ApprovedSuppliers = suppliers.Count(s => s.Status == Domain.Enums.SupplierStatus.Approved),
+                PendingSuppliers = suppliers.Count(s => s.Status == Domain.Enums.SupplierStatus.Pending),
+                TotalInvitations = totalInvitations,
+                TotalQuotedValue = totalQuotedValue,
+                TotalAwardedValue = totalAwardedValue,
+                AverageQuoteValue = totalQuotes == 0 ? 0m : totalQuotedValue / totalQuotes,
+                AverageQuotesPerRfq = totalRfqs == 0 ? 0d : (double)totalQuotes / totalRfqs,
+                QuoteConversionRate = totalInvitations == 0 ? 0d : (double)totalQuotes * 100d / totalInvitations
+            };
+
+            _recentRfqs = rfqs
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(10)
+                .ToList();
+
+            _recentAwards = quotes
+                .Where(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded)
+                .OrderByDescending(q => q.Rfq.AwardedAt ?? q.SubmittedAt)
+                .Take(10)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load report metrics");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetBuyerLabel(Domain.Entities.Rfq rfq)
+    {
+        string fullName = $"{rfq.Buyer.FirstName} {rfq.Buyer.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? rfq.Buyer.Email : fullName;
+    }
+
+    private static string GetStatusVariant(Domain.Enums.RfqStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.RfqStatus.Draft => "draft",
+            Domain.Enums.RfqStatus.Published => "published",
+            Domain.Enums.RfqStatus.QuotesReceived => "pending",
+            Domain.Enums.RfqStatus.UnderEvaluation => "pending",
+            Domain.Enums.RfqStatus.Awarded => "awarded",
+            Domain.Enums.RfqStatus.Closed => "closed",
+            Domain.Enums.RfqStatus.Cancelled => "cancelled",
+            Domain.Enums.RfqStatus.Expired => "expired",
+            _ => "default"
+        };
+    }
+
+    private sealed class ReportStats
+    {
+        public int TotalRfqs { get; set; }
+        public int OpenRfqs { get; set; }
+        public int AwardedRfqs { get; set; }
+        public int ClosedRfqs { get; set; }
+        public int DraftRfqs { get; set; }
+        public int PublishedRfqs { get; set; }
+        public int QuotesReceivedRfqs { get; set; }
+        public int UnderEvaluationRfqs { get; set; }
+        public int CancelledRfqs { get; set; }
+        public int ExpiredRfqs { get; set; }
+        public int TotalQuotes { get; set; }
+        public int AwardedQuotes { get; set; }
+        public int ApprovedSuppliers { get; set; }
+        public int PendingSuppliers { get; set; }
+        public int TotalInvitations { get; set; }
+        public decimal TotalQuotedValue { get; set; }
+        public decimal TotalAwardedValue { get; set; }
+        public decimal AverageQuoteValue { get; set; }
+        public double AverageQuotesPerRfq { get; set; }
+        public double QuoteConversionRate { get; set; }
+    }
+}
