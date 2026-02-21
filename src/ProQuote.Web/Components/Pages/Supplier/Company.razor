@@ -2,10 +2,240 @@
 @rendermode InteractiveServer
 @layout SupplierLayout
 @attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Profile
+@inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
 
 <PageTitle>Company Profile - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Company Profile</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for company profile management.</p>
-</PqCard>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading company profile...</p>
+    </PqCard>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <PqCard>
+        <p class="pq-body-sm" style="color:var(--pq-danger-text)">@_loadError</p>
+    </PqCard>
+}
+else if (_supplier is null)
+{
+    <PqCard>
+        <p class="pq-body-sm">Supplier profile is unavailable.</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <div class="pq-flex pq-justify-between pq-items-center" style="flex-wrap:wrap;gap:var(--pq-space-2);">
+                <h2 class="pq-card-title">Supplier Details</h2>
+                <PqBadge Variant="@GetSupplierStatusVariant(_supplier.Status)">
+                    @_supplier.Status
+                </PqBadge>
+            </div>
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                <PqInput Label="Company Name"
+                         Value="@_supplier.CompanyName"
+                         ValueChanged="@(v => _supplier.CompanyName = v ?? string.Empty)"
+                         Error="@_errors.GetValueOrDefault(nameof(_supplier.CompanyName))"
+                         Disabled="_isSaving"
+                         Required="true" />
+
+                <PqInput Label="Contact Name"
+                         Value="@_supplier.ContactName"
+                         ValueChanged="@(v => _supplier.ContactName = v ?? string.Empty)"
+                         Error="@_errors.GetValueOrDefault(nameof(_supplier.ContactName))"
+                         Disabled="_isSaving"
+                         Required="true" />
+
+                <PqInput Label="Email" Value="@_supplier.Email" Disabled="true" />
+
+                <PqInput Label="Phone"
+                         Value="@_supplier.Phone"
+                         ValueChanged="@(v => _supplier.Phone = v)"
+                         Disabled="_isSaving" />
+
+                <PqInput Label="Website"
+                         Value="@_supplier.Website"
+                         ValueChanged="@(v => _supplier.Website = v)"
+                         Disabled="_isSaving" />
+
+                <PqInput Label="Address"
+                         Value="@_supplier.Address"
+                         ValueChanged="@(v => _supplier.Address = v)"
+                         Disabled="_isSaving" />
+
+                <div class="pq-flex pq-gap-2" style="flex-wrap:wrap;">
+                    <div style="min-width:180px;flex:1;">
+                        <PqInput Label="City"
+                                 Value="@_supplier.City"
+                                 ValueChanged="@(v => _supplier.City = v)"
+                                 Disabled="_isSaving" />
+                    </div>
+                    <div style="min-width:180px;flex:1;">
+                        <PqInput Label="Country"
+                                 Value="@_supplier.Country"
+                                 ValueChanged="@(v => _supplier.Country = v)"
+                                 Disabled="_isSaving" />
+                    </div>
+                </div>
+
+                <PqInput Label="Tax ID"
+                         Value="@_supplier.TaxId"
+                         ValueChanged="@(v => _supplier.TaxId = v)"
+                         Disabled="_isSaving" />
+
+                <div style="display:flex;justify-content:flex-end;">
+                    <PqButton Variant="primary" OnClick="SaveAsync" Loading="_isSaving">Save Company Profile</PqButton>
+                </div>
+            </div>
+        </PqCard>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _loadError;
+    private SupplierProfileDto? _supplier;
+    private Dictionary<string, string> _errors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        try
+        {
+            Guid? userId = await ResolveUserIdAsync();
+            if (!userId.HasValue)
+            {
+                _loadError = "Unable to resolve current user.";
+                return;
+            }
+
+            UserProfileDto? profile = await AuthService.GetUserProfileAsync(userId.Value);
+            if (profile?.Supplier == null)
+            {
+                _loadError = "Supplier profile not found.";
+                return;
+            }
+
+            _supplier = profile.Supplier;
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_supplier is null)
+        {
+            return;
+        }
+
+        _errors = Validate();
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        Guid? userId = await ResolveUserIdAsync();
+        if (!userId.HasValue)
+        {
+            ToastService.ShowError("Unable to resolve current user.");
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            UpdateSupplierProfileRequest request = new()
+            {
+                CompanyName = _supplier.CompanyName,
+                ContactName = _supplier.ContactName,
+                Phone = _supplier.Phone,
+                Website = _supplier.Website,
+                Address = _supplier.Address,
+                City = _supplier.City,
+                Country = _supplier.Country,
+                TaxId = _supplier.TaxId
+            };
+
+            AuthResponse response = await AuthService.UpdateSupplierProfileAsync(userId.Value, request);
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to update company profile.");
+                return;
+            }
+
+            ToastService.ShowSuccess("Company profile updated.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to save company profile");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private Dictionary<string, string> Validate()
+    {
+        Dictionary<string, string> errors = [];
+        if (_supplier == null)
+        {
+            return errors;
+        }
+
+        if (string.IsNullOrWhiteSpace(_supplier.CompanyName))
+        {
+            errors[nameof(_supplier.CompanyName)] = "Company name is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(_supplier.ContactName))
+        {
+            errors[nameof(_supplier.ContactName)] = "Contact name is required.";
+        }
+
+        return errors;
+    }
+
+    private async Task<Guid?> ResolveUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
+    }
+
+    private static string GetSupplierStatusVariant(Domain.Enums.SupplierStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.SupplierStatus.Approved => "awarded",
+            Domain.Enums.SupplierStatus.Pending => "pending",
+            Domain.Enums.SupplierStatus.Rejected => "expired",
+            Domain.Enums.SupplierStatus.Suspended => "cancelled",
+            _ => "default"
+        };
+    }
+}
