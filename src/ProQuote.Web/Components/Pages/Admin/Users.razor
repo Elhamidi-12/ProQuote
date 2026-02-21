@@ -2,10 +2,264 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using ProQuote.Infrastructure.Identity
+@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject UserManager<ApplicationUserIdentity> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
 
 <PageTitle>Admin Users - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">All Users</h1>
 <PqCard>
-    <p class="pq-body-sm">This page is available and ready for users management implementation.</p>
+    <div class="pq-flex pq-gap-2 pq-items-end" style="flex-wrap:wrap;">
+        <div style="min-width:250px;flex:1;">
+            <PqInput Label="Search"
+                     Value="@_searchTerm"
+                     ValueChanged="@(v => _searchTerm = v ?? string.Empty)"
+                     Placeholder="Name, email, or username..."
+                     Disabled="_isLoading" />
+        </div>
+        <div style="min-width:180px;flex:1;">
+            <PqSelect Label="Role"
+                      Value="@_roleFilter"
+                      ValueChanged="@(v => _roleFilter = v ?? string.Empty)"
+                      Options="_roleOptions"
+                      Placeholder="All roles"
+                      Disabled="_isLoading" />
+        </div>
+        <div style="min-width:180px;flex:1;">
+            <PqSelect Label="Status"
+                      Value="@_statusFilter"
+                      ValueChanged="@(v => _statusFilter = v ?? string.Empty)"
+                      Options="_statusOptions"
+                      Placeholder="All statuses"
+                      Disabled="_isLoading" />
+        </div>
+        <PqButton Variant="secondary" OnClick="LoadAsync" Loading="_isLoading">Apply</PqButton>
+        <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">Loading users...</p>
+    }
+    else if (_users.Count == 0)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">No users found.</p>
+    }
+    else
+    {
+        <div style="margin-top:var(--pq-space-3);">
+            <PqTable Headers="_headers">
+                @foreach (UserRow user in _users)
+                {
+                    <tr>
+                        <td>@user.DisplayName</td>
+                        <td>@user.Email</td>
+                        <td>@user.RoleLabel</td>
+                        <td>@user.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                        <td>@(user.LastLoginAt.HasValue ? user.LastLoginAt.Value.ToLocalTime().ToString("MMM dd, yyyy HH:mm") : "-")</td>
+                        <td>
+                            <PqBadge Variant="@(user.IsActive ? "published" : "expired")">
+                                @(user.IsActive ? "Active" : "Inactive")
+                            </PqBadge>
+                        </td>
+                        <td>
+                            <PqButton Variant="secondary"
+                                      Size="sm"
+                                      Disabled="@(user.Id == _currentUserId || _busyUserId == user.Id)"
+                                      OnClick="@(() => ToggleUserStateAsync(user.Id))"
+                                      Loading="@(_busyUserId == user.Id)">
+                                @(user.IsActive ? "Deactivate" : "Activate")
+                            </PqButton>
+                        </td>
+                    </tr>
+                }
+            </PqTable>
+        </div>
+    }
 </PqCard>
+
+@code {
+    private bool _isLoading = true;
+    private Guid? _busyUserId;
+    private Guid? _currentUserId;
+    private string _searchTerm = string.Empty;
+    private string _roleFilter = string.Empty;
+    private string _statusFilter = string.Empty;
+    private List<UserRow> _users = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Name", Field = "name", Width = "190px" },
+        new() { Label = "Email", Field = "email", Width = "220px" },
+        new() { Label = "Role", Field = "role", Width = "120px" },
+        new() { Label = "Created", Field = "created", Width = "120px" },
+        new() { Label = "Last Login", Field = "lastLogin", Width = "170px" },
+        new() { Label = "Status", Field = "status", Width = "110px" },
+        new() { Label = "Actions", Field = "actions", Width = "130px" }
+    ];
+
+    private readonly List<PqSelect.SelectOption> _roleOptions =
+    [
+        new() { Value = ApplicationRoles.Admin, Label = "Admin" },
+        new() { Value = ApplicationRoles.Buyer, Label = "Buyer" },
+        new() { Value = ApplicationRoles.Supplier, Label = "Supplier" }
+    ];
+
+    private readonly List<PqSelect.SelectOption> _statusOptions =
+    [
+        new() { Value = "active", Label = "Active" },
+        new() { Value = "inactive", Label = "Inactive" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUserId = await GetCurrentUserIdAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            List<ApplicationUserIdentity> users = await DbContext.Users
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+
+            List<IdentityUserRole<Guid>> userRoles = await DbContext.UserRoles.ToListAsync();
+            List<ApplicationRoleIdentity> roles = await DbContext.Roles.ToListAsync();
+            Dictionary<Guid, string> roleByUserId = userRoles
+                .GroupBy(ur => ur.UserId)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        Guid roleId = g.First().RoleId;
+                        return roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? "-";
+                    });
+
+            IEnumerable<UserRow> query = users.Select(u =>
+            {
+                string fullName = $"{u.FirstName} {u.LastName}".Trim();
+                return new UserRow
+                {
+                    Id = u.Id,
+                    DisplayName = string.IsNullOrWhiteSpace(fullName) ? (u.UserName ?? u.Email ?? u.Id.ToString()) : fullName,
+                    Email = u.Email ?? "-",
+                    RoleLabel = roleByUserId.TryGetValue(u.Id, out string? roleName) ? roleName : "-",
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt,
+                    LastLoginAt = u.LastLoginAt
+                };
+            });
+
+            if (!string.IsNullOrWhiteSpace(_searchTerm))
+            {
+                string term = _searchTerm.Trim();
+                query = query.Where(u =>
+                    u.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    u.Email.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_roleFilter))
+            {
+                query = query.Where(u => u.RoleLabel.Equals(_roleFilter, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (_statusFilter.Equals("active", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(u => u.IsActive);
+            }
+            else if (_statusFilter.Equals("inactive", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(u => !u.IsActive);
+            }
+
+            _users = query.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load users");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        _searchTerm = string.Empty;
+        _roleFilter = string.Empty;
+        _statusFilter = string.Empty;
+        await LoadAsync();
+    }
+
+    private async Task ToggleUserStateAsync(Guid userId)
+    {
+        ApplicationUserIdentity? user = await UserManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return;
+        }
+
+        if (_currentUserId.HasValue && user.Id == _currentUserId.Value)
+        {
+            ToastService.ShowError("You cannot deactivate your own account.");
+            return;
+        }
+
+        _busyUserId = userId;
+        try
+        {
+            bool activate = !user.IsActive;
+            user.IsActive = activate;
+            user.LockoutEnabled = true;
+            user.LockoutEnd = activate ? null : DateTimeOffset.UtcNow.AddYears(100);
+
+            IdentityResult result = await UserManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                string message = string.Join("; ", result.Errors.Select(e => e.Description));
+                ToastService.ShowError(message, "User update failed");
+                return;
+            }
+
+            ToastService.ShowSuccess(activate ? "User activated." : "User deactivated.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to update user");
+        }
+        finally
+        {
+            _busyUserId = null;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out Guid parsed) ? parsed : null;
+    }
+
+    private sealed class UserRow
+    {
+        public Guid Id { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string RoleLabel { get; set; } = "-";
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+    }
+}
