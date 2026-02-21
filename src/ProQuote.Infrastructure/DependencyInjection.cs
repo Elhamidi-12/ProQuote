@@ -39,6 +39,7 @@ public static class DependencyInjection
         // Add JWT Settings
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 
+
         // Add Identity
         services.AddIdentity<ApplicationUserIdentity, ApplicationRoleIdentity>(options =>
         {

@@ -1,0 +1,86 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+using ProQuote.Application.DTOs.Communication;
+using ProQuote.Application.Interfaces;
+using ProQuote.Infrastructure.Identity;
+
+namespace ProQuote.Web.Controllers.Api.V1;
+
+/// <summary>
+/// Notification endpoints for authenticated users.
+/// </summary>
+[Route("api/v1/notifications")]
+[Authorize(Roles = ApplicationRoles.All, AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+public class NotificationsController : ApiControllerBase
+{
+    private readonly ICommunicationService _communicationService;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NotificationsController"/> class.
+    /// </summary>
+    /// <param name="communicationService">Communication service.</param>
+    public NotificationsController(ICommunicationService communicationService)
+    {
+        _communicationService = communicationService;
+    }
+
+    /// <summary>
+    /// Gets notifications for current user.
+    /// </summary>
+    /// <param name="take">Max item count.</param>
+    /// <param name="unreadOnly">Only unread notifications.</param>
+    /// <returns>Notification list payload.</returns>
+    [HttpGet]
+    public async Task<IActionResult> Get([FromQuery] int take = 20, [FromQuery] bool unreadOnly = false)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        IReadOnlyList<NotificationItemDto> notifications =
+            await _communicationService.GetNotificationsAsync(CurrentUserId.Value, take, unreadOnly);
+        int unreadCount = await _communicationService.GetUnreadNotificationCountAsync(CurrentUserId.Value);
+
+        return Ok(new
+        {
+            unreadCount,
+            items = notifications
+        });
+    }
+
+    /// <summary>
+    /// Marks one notification as read.
+    /// </summary>
+    /// <param name="id">Notification identifier.</param>
+    /// <returns>Operation result.</returns>
+    [HttpPost("{id:guid}/read")]
+    public async Task<IActionResult> MarkRead(Guid id)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        bool updated = await _communicationService.MarkNotificationAsReadAsync(CurrentUserId.Value, id);
+        return updated ? Ok(new { succeeded = true }) : NotFound(new { succeeded = false });
+    }
+
+    /// <summary>
+    /// Marks all notifications as read.
+    /// </summary>
+    /// <returns>Operation result.</returns>
+    [HttpPost("read-all")]
+    public async Task<IActionResult> MarkAllRead()
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        int updated = await _communicationService.MarkAllNotificationsAsReadAsync(CurrentUserId.Value);
+        return Ok(new { succeeded = true, updated });
+    }
+}
