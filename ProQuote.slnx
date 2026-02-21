@@ -5,4 +5,7 @@
     <Project Path="src/ProQuote.Infrastructure/ProQuote.Infrastructure.csproj" />
     <Project Path="src/ProQuote.Web/ProQuote.Web.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ProQuote.Infrastructure.Tests/ProQuote.Infrastructure.Tests.csproj" />
+  </Folder>
 </Solution>

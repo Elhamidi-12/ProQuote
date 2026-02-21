@@ -32,7 +32,7 @@
 
   <!-- Suppress XML doc warnings for test projects -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA1707</NoWarn>
   </PropertyGroup>
 
 </Project>
