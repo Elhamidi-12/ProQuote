@@ -2,10 +2,318 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@inject IUnitOfWork UnitOfWork
+@inject ToastService ToastService
 
 <PageTitle>Categories - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Categories</h1>
 <PqCard>
-    <p class="pq-body-sm">This page is available and ready for category management.</p>
+    <div class="pq-flex pq-justify-between pq-items-center" style="gap:var(--pq-space-2);flex-wrap:wrap;">
+        <p class="pq-body-sm">Manage RFQ categories used by buyers and suppliers.</p>
+        <PqButton Variant="primary" OnClick="OpenCreateModal">Add Category</PqButton>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">Loading categories...</p>
+    }
+    else if (_categories.Count == 0)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">No categories found.</p>
+    }
+    else
+    {
+        <div style="margin-top:var(--pq-space-3);">
+            <PqTable Headers="_headers">
+                @foreach (Domain.Entities.Category category in _categories)
+                {
+                    <tr>
+                        <td>@category.Name</td>
+                        <td>@GetParentName(category.ParentCategoryId)</td>
+                        <td>@category.DisplayOrder</td>
+                        <td><PqBadge Variant="@(category.IsActive ? "published" : "expired")">@(category.IsActive ? "Active" : "Inactive")</PqBadge></td>
+                        <td>@(string.IsNullOrWhiteSpace(category.Description) ? "-" : category.Description)</td>
+                        <td>
+                            <div style="display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
+                                <PqButton Variant="secondary" Size="sm" OnClick="@(() => OpenEditModal(category.Id))">Edit</PqButton>
+                                <PqButton Variant="ghost" Size="sm" OnClick="@(() => ToggleActiveAsync(category.Id))">
+                                    @(category.IsActive ? "Deactivate" : "Activate")
+                                </PqButton>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </PqTable>
+        </div>
+    }
 </PqCard>
+
+<PqModal @bind-IsOpen="_isModalOpen" Title="@(_isEditMode ? "Edit Category" : "Add Category")" Size="md">
+    <ChildContent>
+        <div class="pq-flex pq-flex-col pq-gap-3">
+            <PqInput Label="Name"
+                     Value="@_form.Name"
+                     ValueChanged="@(v => _form.Name = v ?? string.Empty)"
+                     Error="@_formError.GetValueOrDefault(nameof(_form.Name))"
+                     Disabled="_isSaving"
+                     Required="true" />
+
+            <PqTextarea Label="Description"
+                        Value="@_form.Description"
+                        ValueChanged="@(v => _form.Description = v)"
+                        Disabled="_isSaving" />
+
+            <PqSelect Label="Parent Category"
+                      Value="@_form.ParentCategoryId"
+                      ValueChanged="@(v => _form.ParentCategoryId = v ?? string.Empty)"
+                      Options="_parentOptions"
+                      Placeholder="None"
+                      Disabled="_isSaving" />
+
+            <PqInput Label="Display Order"
+                     Type="number"
+                     Value="@_form.DisplayOrder"
+                     ValueChanged="@(v => _form.DisplayOrder = v ?? "1")"
+                     Error="@_formError.GetValueOrDefault(nameof(_form.DisplayOrder))"
+                     Disabled="_isSaving" />
+        </div>
+    </ChildContent>
+    <Footer>
+        <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;">
+            <PqButton Variant="ghost" OnClick="CloseModalAsync" Disabled="_isSaving">Cancel</PqButton>
+            <PqButton Variant="primary" OnClick="SaveAsync" Loading="_isSaving">Save</PqButton>
+        </div>
+    </Footer>
+</PqModal>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isModalOpen;
+    private bool _isSaving;
+    private bool _isEditMode;
+    private Guid? _editingCategoryId;
+    private List<Domain.Entities.Category> _categories = [];
+    private List<PqSelect.SelectOption> _parentOptions = [];
+    private Dictionary<string, string> _formError = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Name", Field = "name", Width = "220px" },
+        new() { Label = "Parent", Field = "parent", Width = "180px" },
+        new() { Label = "Order", Field = "order", Width = "100px" },
+        new() { Label = "Status", Field = "status", Width = "110px" },
+        new() { Label = "Description", Field = "description" },
+        new() { Label = "Actions", Field = "actions", Width = "220px" }
+    ];
+
+    private CategoryForm _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            IReadOnlyList<Domain.Entities.Category> categories = await UnitOfWork.Categories.GetAllAsync();
+            _categories = categories
+                .OrderBy(c => c.DisplayOrder)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            BuildParentOptions();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load categories");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void BuildParentOptions()
+    {
+        IEnumerable<Domain.Entities.Category> options = _categories;
+        if (_isEditMode && _editingCategoryId.HasValue)
+        {
+            options = options.Where(c => c.Id != _editingCategoryId.Value);
+        }
+
+        _parentOptions = options
+            .OrderBy(c => c.Name)
+            .Select(c => new PqSelect.SelectOption
+            {
+                Value = c.Id.ToString(),
+                Label = c.Name
+            })
+            .ToList();
+    }
+
+    private void OpenCreateModal()
+    {
+        _isEditMode = false;
+        _editingCategoryId = null;
+        _formError = [];
+        _form = new CategoryForm
+        {
+            DisplayOrder = (_categories.Count == 0 ? 1 : _categories.Max(c => c.DisplayOrder) + 1).ToString()
+        };
+        BuildParentOptions();
+        _isModalOpen = true;
+    }
+
+    private void OpenEditModal(Guid id)
+    {
+        Domain.Entities.Category? category = _categories.FirstOrDefault(c => c.Id == id);
+        if (category == null)
+        {
+            return;
+        }
+
+        _isEditMode = true;
+        _editingCategoryId = id;
+        _formError = [];
+        _form = new CategoryForm
+        {
+            Name = category.Name,
+            Description = category.Description,
+            ParentCategoryId = category.ParentCategoryId?.ToString() ?? string.Empty,
+            DisplayOrder = category.DisplayOrder.ToString()
+        };
+        BuildParentOptions();
+        _isModalOpen = true;
+    }
+
+    private Task CloseModalAsync()
+    {
+        _isModalOpen = false;
+        _isSaving = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        _formError = ValidateForm();
+        if (_formError.Count > 0)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            Guid? parentId = Guid.TryParse(_form.ParentCategoryId, out Guid parsedParent) ? parsedParent : null;
+            int displayOrder = int.Parse(_form.DisplayOrder);
+            string normalizedName = _form.Name.Trim();
+
+            bool nameExists = await UnitOfWork.Categories.NameExistsAsync(normalizedName, parentId, _editingCategoryId);
+            if (nameExists)
+            {
+                _formError[nameof(_form.Name)] = "A category with this name already exists at this level.";
+                return;
+            }
+
+            if (_isEditMode && _editingCategoryId.HasValue)
+            {
+                Domain.Entities.Category? existing = await UnitOfWork.Categories.GetByIdAsync(_editingCategoryId.Value);
+                if (existing == null)
+                {
+                    ToastService.ShowError("Category not found.");
+                    return;
+                }
+
+                existing.Name = normalizedName;
+                existing.Description = string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description.Trim();
+                existing.ParentCategoryId = parentId;
+                existing.DisplayOrder = displayOrder;
+                UnitOfWork.Categories.Update(existing);
+                await UnitOfWork.SaveChangesAsync();
+                ToastService.ShowSuccess("Category updated.");
+            }
+            else
+            {
+                Domain.Entities.Category newCategory = new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = normalizedName,
+                    Description = string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description.Trim(),
+                    ParentCategoryId = parentId,
+                    DisplayOrder = displayOrder,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await UnitOfWork.Categories.AddAsync(newCategory);
+                await UnitOfWork.SaveChangesAsync();
+                ToastService.ShowSuccess("Category created.");
+            }
+
+            _isModalOpen = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to save category");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ToggleActiveAsync(Guid categoryId)
+    {
+        Domain.Entities.Category? category = await UnitOfWork.Categories.GetByIdAsync(categoryId);
+        if (category == null)
+        {
+            return;
+        }
+
+        category.IsActive = !category.IsActive;
+        UnitOfWork.Categories.Update(category);
+        await UnitOfWork.SaveChangesAsync();
+        ToastService.ShowSuccess(category.IsActive ? "Category activated." : "Category deactivated.");
+        await LoadAsync();
+    }
+
+    private Dictionary<string, string> ValidateForm()
+    {
+        Dictionary<string, string> errors = [];
+        if (string.IsNullOrWhiteSpace(_form.Name))
+        {
+            errors[nameof(_form.Name)] = "Name is required.";
+        }
+
+        if (!int.TryParse(_form.DisplayOrder, out int displayOrder) || displayOrder < 0)
+        {
+            errors[nameof(_form.DisplayOrder)] = "Display order must be a non-negative number.";
+        }
+
+        return errors;
+    }
+
+    private string GetParentName(Guid? parentId)
+    {
+        if (!parentId.HasValue)
+        {
+            return "None";
+        }
+
+        Domain.Entities.Category? parent = _categories.FirstOrDefault(c => c.Id == parentId.Value);
+        return parent?.Name ?? "Unknown";
+    }
+
+    private sealed class CategoryForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string ParentCategoryId { get; set; } = string.Empty;
+        public string DisplayOrder { get; set; } = "1";
+    }
+}
