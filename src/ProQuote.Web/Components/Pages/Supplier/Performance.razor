@@ -2,10 +2,279 @@
 @rendermode InteractiveServer
 @layout SupplierLayout
 @attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
 
 <PageTitle>Supplier Performance - ProQuote</PageTitle>
 
-<h1 class="pq-section-title">Performance</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for supplier performance metrics.</p>
-</PqCard>
+<div class="pq-flex pq-flex-col pq-gap-4">
+    <h1 class="pq-section-title">Performance</h1>
+
+    @if (_isLoading)
+    {
+        <PqCard>
+            <p class="pq-body-sm">Loading performance metrics...</p>
+        </PqCard>
+    }
+    else
+    {
+        <div class="dashboard-grid">
+            <PqStatCard Title="Invitations Received" Value="@_stats.TotalInvitations.ToString()" Icon="envelope" />
+            <PqStatCard Title="Quotes Submitted" Value="@_stats.SubmittedQuotes.ToString()" Icon="receipt" />
+            <PqStatCard Title="Won Contracts" Value="@_stats.WonQuotes.ToString()" Icon="trophy" />
+            <PqStatCard Title="Win Rate" Value="@($"{_stats.WinRate:N1}%")" Icon="graph-up-arrow" />
+            <PqStatCard Title="Invitation Conversion" Value="@($"{_stats.InvitationConversionRate:N1}%")" Icon="bar-chart" />
+            <PqStatCard Title="Submitted Value" Value="@_stats.TotalSubmittedValue.ToString("N2")" Icon="cash-stack" />
+            <PqStatCard Title="Awarded Value" Value="@_stats.TotalAwardedValue.ToString("N2")" Icon="patch-check" />
+            <PqStatCard Title="Avg Quote Value" Value="@_stats.AverageQuoteValue.ToString("N2")" Icon="calculator" />
+        </div>
+
+        <div class="dashboard-grid">
+            <PqCard>
+                <h2 class="pq-card-title">Invitation Funnel</h2>
+                <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+                    <li class="pq-body-sm">Sent: @_stats.SentInvitations</li>
+                    <li class="pq-body-sm">Viewed: @_stats.ViewedInvitations</li>
+                    <li class="pq-body-sm">Quoted: @_stats.QuotedInvitations</li>
+                    <li class="pq-body-sm">Declined: @_stats.DeclinedInvitations</li>
+                </ul>
+            </PqCard>
+
+            <PqCard>
+                <h2 class="pq-card-title">Quote Outcomes</h2>
+                <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+                    <li class="pq-body-sm">Submitted: @_stats.SubmittedQuotes</li>
+                    <li class="pq-body-sm">Awarded: @_stats.WonQuotes</li>
+                    <li class="pq-body-sm">Rejected: @_stats.RejectedQuotes</li>
+                    <li class="pq-body-sm">Withdrawn: @_stats.WithdrawnQuotes</li>
+                </ul>
+            </PqCard>
+        </div>
+
+        <PqCard>
+            <h2 class="pq-card-title">Recent Quotes</h2>
+            @if (_recentQuotes.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No submitted quotes yet.</p>
+            }
+            else
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqTable Headers="_quoteHeaders">
+                        @foreach (Domain.Entities.Quote quote in _recentQuotes)
+                        {
+                            <tr>
+                                <td>@quote.Rfq.ReferenceNumber</td>
+                                <td>@quote.Rfq.Title</td>
+                                <td><PqBadge Variant="@GetQuoteVariant(quote)">@GetQuoteLabel(quote)</PqBadge></td>
+                                <td>@quote.TotalAmount.ToString("N2")</td>
+                                <td>@quote.SubmittedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                                <td>@quote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                    </PqTable>
+                </div>
+            }
+        </PqCard>
+
+        <PqCard>
+            <h2 class="pq-card-title">Upcoming Invitation Deadlines</h2>
+            @if (_upcomingInvitations.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No active invitation deadlines.</p>
+            }
+            else
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqTable Headers="_invitationHeaders">
+                        @foreach (Domain.Entities.RfqInvitation invitation in _upcomingInvitations)
+                        {
+                            <tr>
+                                <td>@invitation.Rfq.ReferenceNumber</td>
+                                <td>@invitation.Rfq.Title</td>
+                                <td><PqBadge Variant="@GetInvitationVariant(invitation.Status)">@invitation.Status</PqBadge></td>
+                                <td>@invitation.Rfq.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                                <td>@(invitation.Rfq.SubmissionDeadline > DateTime.UtcNow ? Math.Ceiling((invitation.Rfq.SubmissionDeadline - DateTime.UtcNow).TotalDays).ToString("N0") : "0")</td>
+                            </tr>
+                        }
+                    </PqTable>
+                </div>
+            }
+        </PqCard>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private PerformanceStats _stats = new();
+    private List<Domain.Entities.Quote> _recentQuotes = [];
+    private List<Domain.Entities.RfqInvitation> _upcomingInvitations = [];
+
+    private readonly List<PqTable.TableColumn> _quoteHeaders =
+    [
+        new() { Label = "Reference", Field = "reference", Width = "130px" },
+        new() { Label = "RFQ", Field = "rfq" },
+        new() { Label = "Status", Field = "status", Width = "130px" },
+        new() { Label = "Amount", Field = "amount", Width = "130px" },
+        new() { Label = "Submitted", Field = "submitted", Width = "130px" },
+        new() { Label = "Valid Until", Field = "validUntil", Width = "130px" }
+    ];
+
+    private readonly List<PqTable.TableColumn> _invitationHeaders =
+    [
+        new() { Label = "Reference", Field = "reference", Width = "130px" },
+        new() { Label = "RFQ", Field = "rfq" },
+        new() { Label = "Status", Field = "status", Width = "130px" },
+        new() { Label = "Deadline", Field = "deadline", Width = "170px" },
+        new() { Label = "Days Left", Field = "daysLeft", Width = "100px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            Guid? supplierUserId = await ResolveCurrentUserIdAsync();
+            if (!supplierUserId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            Domain.Entities.Supplier? supplier = await DbContext.Suppliers
+                .FirstOrDefaultAsync(s => s.UserId == supplierUserId.Value);
+
+            if (supplier == null)
+            {
+                ToastService.ShowError("Supplier profile not found.");
+                return;
+            }
+
+            List<Domain.Entities.RfqInvitation> invitations = await DbContext.RfqInvitations
+                .Where(i => i.SupplierId == supplier.Id)
+                .Include(i => i.Rfq)
+                .OrderByDescending(i => i.SentAt)
+                .ToListAsync();
+
+            List<Domain.Entities.Quote> quotes = await DbContext.Quotes
+                .Where(q => q.SupplierId == supplier.Id)
+                .Include(q => q.Rfq)
+                .OrderByDescending(q => q.SubmittedAt)
+                .ToListAsync();
+
+            int totalInvitations = invitations.Count;
+            int submittedQuotes = quotes.Count(q => q.Status == Domain.Enums.QuoteStatus.Submitted || q.Status == Domain.Enums.QuoteStatus.Awarded || q.Status == Domain.Enums.QuoteStatus.Rejected);
+            int wonQuotes = quotes.Count(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded);
+            int rejectedQuotes = quotes.Count(q => q.Status == Domain.Enums.QuoteStatus.Rejected);
+            int withdrawnQuotes = quotes.Count(q => q.Status == Domain.Enums.QuoteStatus.Withdrawn);
+
+            decimal totalSubmittedValue = quotes.Sum(q => q.TotalAmount);
+            decimal totalAwardedValue = quotes
+                .Where(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded)
+                .Sum(q => q.TotalAmount);
+
+            _stats = new PerformanceStats
+            {
+                TotalInvitations = totalInvitations,
+                SentInvitations = invitations.Count(i => i.Status == Domain.Enums.InvitationStatus.Sent),
+                ViewedInvitations = invitations.Count(i => i.Status == Domain.Enums.InvitationStatus.Viewed),
+                QuotedInvitations = invitations.Count(i => i.Status == Domain.Enums.InvitationStatus.Quoted),
+                DeclinedInvitations = invitations.Count(i => i.Status == Domain.Enums.InvitationStatus.Declined),
+                SubmittedQuotes = submittedQuotes,
+                WonQuotes = wonQuotes,
+                RejectedQuotes = rejectedQuotes,
+                WithdrawnQuotes = withdrawnQuotes,
+                WinRate = submittedQuotes == 0 ? 0d : (double)wonQuotes * 100d / submittedQuotes,
+                InvitationConversionRate = totalInvitations == 0 ? 0d : (double)submittedQuotes * 100d / totalInvitations,
+                TotalSubmittedValue = totalSubmittedValue,
+                TotalAwardedValue = totalAwardedValue,
+                AverageQuoteValue = quotes.Count == 0 ? 0m : totalSubmittedValue / quotes.Count
+            };
+
+            _recentQuotes = quotes.Take(10).ToList();
+            _upcomingInvitations = invitations
+                .Where(i =>
+                    (i.Status == Domain.Enums.InvitationStatus.Sent || i.Status == Domain.Enums.InvitationStatus.Viewed) &&
+                    i.Rfq.SubmissionDeadline > DateTime.UtcNow)
+                .OrderBy(i => i.Rfq.SubmissionDeadline)
+                .Take(10)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load performance metrics");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task<Guid?> ResolveCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+
+    private static string GetQuoteLabel(Domain.Entities.Quote quote)
+    {
+        return (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded) ? "Awarded" : quote.Status.ToString();
+    }
+
+    private static string GetQuoteVariant(Domain.Entities.Quote quote)
+    {
+        if (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded)
+        {
+            return "awarded";
+        }
+
+        return quote.Status switch
+        {
+            Domain.Enums.QuoteStatus.Submitted => "published",
+            Domain.Enums.QuoteStatus.UnderReview => "pending",
+            Domain.Enums.QuoteStatus.Rejected => "expired",
+            Domain.Enums.QuoteStatus.Withdrawn => "cancelled",
+            _ => "default"
+        };
+    }
+
+    private static string GetInvitationVariant(Domain.Enums.InvitationStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.InvitationStatus.Sent => "pending",
+            Domain.Enums.InvitationStatus.Viewed => "published",
+            Domain.Enums.InvitationStatus.Quoted => "awarded",
+            Domain.Enums.InvitationStatus.Declined => "cancelled",
+            _ => "default"
+        };
+    }
+
+    private sealed class PerformanceStats
+    {
+        public int TotalInvitations { get; set; }
+        public int SentInvitations { get; set; }
+        public int ViewedInvitations { get; set; }
+        public int QuotedInvitations { get; set; }
+        public int DeclinedInvitations { get; set; }
+        public int SubmittedQuotes { get; set; }
+        public int WonQuotes { get; set; }
+        public int RejectedQuotes { get; set; }
+        public int WithdrawnQuotes { get; set; }
+        public double WinRate { get; set; }
+        public double InvitationConversionRate { get; set; }
+        public decimal TotalSubmittedValue { get; set; }
+        public decimal TotalAwardedValue { get; set; }
+        public decimal AverageQuoteValue { get; set; }
+    }
+}
