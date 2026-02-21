@@ -1,0 +1,127 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Quotes
+@inject IQuoteSubmissionService QuoteSubmissionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
+
+<h1 class="pq-section-title">@Title</h1>
+<PqCard>
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm">Loading quotes...</p>
+    }
+    else if (_quotes.Count == 0)
+    {
+        <p class="pq-body-sm">No quotes found.</p>
+    }
+    else
+    {
+        <PqTable Headers="_headers">
+            @foreach (SupplierQuoteListItemDto quote in _quotes)
+            {
+                <tr>
+                    <td>@quote.ReferenceNumber</td>
+                    <td>@quote.Title</td>
+                    <td><PqBadge Variant="@GetQuoteBadgeVariant(quote)">@GetQuoteLabel(quote)</PqBadge></td>
+                    <td>@quote.TotalAmount.ToString("N2")</td>
+                    <td>@quote.SubmittedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                    <td>@quote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                    <td>
+                        <a href="@($"/supplier/rfqs/{quote.RfqId}/quote")">
+                            <PqButton Variant="secondary" Size="sm">Open</PqButton>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </PqTable>
+    }
+</PqCard>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Quotes";
+    [Parameter] public Domain.Enums.QuoteStatus? StatusFilter { get; set; }
+    [Parameter] public bool AwardedOnly { get; set; }
+
+    private bool _isLoading = true;
+    private List<SupplierQuoteListItemDto> _quotes = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Reference", Field = "reference" },
+        new() { Label = "RFQ", Field = "rfq" },
+        new() { Label = "Status", Field = "status" },
+        new() { Label = "Total", Field = "total" },
+        new() { Label = "Submitted", Field = "submitted" },
+        new() { Label = "Valid Until", Field = "validUntil" },
+        new() { Label = "Actions", Field = "actions", Width = "120px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            Guid? userId = await GetCurrentUserIdAsync();
+            if (!userId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            IReadOnlyList<SupplierQuoteListItemDto> quotes =
+                await QuoteSubmissionService.GetSupplierQuotesAsync(userId.Value, StatusFilter);
+
+            _quotes = AwardedOnly
+                ? quotes.Where(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded).ToList()
+                : quotes.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load quotes");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+
+    private static string GetQuoteLabel(SupplierQuoteListItemDto quote)
+    {
+        if (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded)
+        {
+            return "Awarded";
+        }
+
+        return quote.Status.ToString();
+    }
+
+    private static string GetQuoteBadgeVariant(SupplierQuoteListItemDto quote)
+    {
+        if (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded)
+        {
+            return "awarded";
+        }
+
+        return quote.Status switch
+        {
+            Domain.Enums.QuoteStatus.Submitted => "published",
+            Domain.Enums.QuoteStatus.UnderReview => "pending",
+            Domain.Enums.QuoteStatus.Rejected => "expired",
+            Domain.Enums.QuoteStatus.Withdrawn => "cancelled",
+            _ => "default"
+        };
+    }
+}

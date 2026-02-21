@@ -1,0 +1,277 @@
+@page "/supplier/rfqs/{RfqId:guid}/quote"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Quotes
+@inject IQuoteSubmissionService QuoteSubmissionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject ToastService ToastService
+
+<PageTitle>Submit Quote - ProQuote</PageTitle>
+
+<h1 class="pq-section-title">Submit Quote</h1>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading quote editor...</p>
+    </PqCard>
+}
+else if (_editor is null)
+{
+    <PqCard>
+        <p class="pq-body-sm">Quote editor is unavailable.</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <h2 class="pq-card-title">@_editor.ReferenceNumber - @_editor.RfqTitle</h2>
+            <div class="pq-flex pq-gap-3" style="flex-wrap:wrap;margin-top:var(--pq-space-2);">
+                <PqBadge Variant="published">Currency: @_editor.Currency</PqBadge>
+                <PqBadge Variant="pending">Deadline: @_editor.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</PqBadge>
+            </div>
+        </PqCard>
+
+        <PqCard>
+            <h2 class="pq-card-title">Commercial Terms</h2>
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                <PqInput Label="Lead Time (Days)"
+                         Type="number"
+                         Value="@_leadTimeDays"
+                         ValueChanged="@(v => _leadTimeDays = v ?? "14")"
+                         Disabled="_isSaving" />
+                <PqInput Label="Valid Until (UTC)"
+                         Type="datetime-local"
+                         Value="@_validUntil"
+                         ValueChanged="@(v => _validUntil = v ?? string.Empty)"
+                         Disabled="_isSaving" />
+                <PqInput Label="Payment Terms"
+                         Value="@_paymentTerms"
+                         ValueChanged="@(v => _paymentTerms = v)"
+                         Disabled="_isSaving" />
+                <PqTextarea Label="Notes"
+                            Value="@_notes"
+                            ValueChanged="@(v => _notes = v)"
+                            Disabled="_isSaving" />
+            </div>
+        </PqCard>
+
+        <PqCard>
+            <h2 class="pq-card-title">Line Item Pricing</h2>
+            <div style="margin-top:var(--pq-space-3);">
+                <PqTable Headers="_lineItemHeaders">
+                    @foreach (QuoteEditorLineItemDto item in _editor.LineItems)
+                    {
+                        <tr>
+                            <td>@item.Name</td>
+                            <td>@item.Quantity.ToString("N2") @item.UnitOfMeasure</td>
+                            <td style="width:180px;">
+                                <PqInput Type="number"
+                                         Value="@GetUnitPrice(item.LineItemId)"
+                                         ValueChanged="@(v => SetUnitPrice(item.LineItemId, v))"
+                                         Disabled="_isSaving" />
+                            </td>
+                            <td>@GetLineTotal(item).ToString("N2")</td>
+                        </tr>
+                    }
+                </PqTable>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:var(--pq-space-3);">
+                <PqBadge Variant="awarded">Total: @GetQuoteTotal().ToString("N2") @_editor.Currency</PqBadge>
+            </div>
+        </PqCard>
+
+        <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;flex-wrap:wrap;">
+            <a href="/supplier/quotes"><PqButton Variant="ghost">Cancel</PqButton></a>
+            <PqButton Variant="primary" OnClick="SaveQuoteAsync" Loading="_isSaving">Submit Quote</PqButton>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid RfqId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private Guid? _currentUserId;
+
+    private QuoteEditorDto? _editor;
+    private string _leadTimeDays = "14";
+    private string _validUntil = string.Empty;
+    private string? _paymentTerms;
+    private string? _notes;
+    private readonly Dictionary<Guid, string> _unitPrices = [];
+
+    private readonly List<PqTable.TableColumn> _lineItemHeaders =
+    [
+        new() { Label = "Line Item", Field = "lineItem" },
+        new() { Label = "Requested Qty", Field = "quantity" },
+        new() { Label = "Unit Price", Field = "unitPrice" },
+        new() { Label = "Line Total", Field = "lineTotal" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _currentUserId = await GetCurrentUserIdAsync();
+            if (!_currentUserId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            _editor = await QuoteSubmissionService.GetQuoteEditorAsync(_currentUserId.Value, RfqId);
+            if (_editor == null)
+            {
+                ToastService.ShowError("RFQ quote editor not available.");
+                return;
+            }
+
+            _leadTimeDays = _editor.LeadTimeDays.ToString();
+            _validUntil = _editor.ValidUntil.ToString("yyyy-MM-ddTHH:mm");
+            _paymentTerms = _editor.PaymentTerms;
+            _notes = _editor.Notes;
+            _unitPrices.Clear();
+            foreach (QuoteEditorLineItemDto lineItem in _editor.LineItems)
+            {
+                _unitPrices[lineItem.LineItemId] = lineItem.UnitPrice.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load quote editor");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetUnitPrice(Guid lineItemId)
+    {
+        return _unitPrices.TryGetValue(lineItemId, out string? value) ? value : "0";
+    }
+
+    private void SetUnitPrice(Guid lineItemId, string? value)
+    {
+        _unitPrices[lineItemId] = value ?? "0";
+    }
+
+    private decimal GetLineTotal(QuoteEditorLineItemDto lineItem)
+    {
+        decimal unitPrice = ParseDecimal(GetUnitPrice(lineItem.LineItemId));
+        return decimal.Round(unitPrice * lineItem.Quantity, 2);
+    }
+
+    private decimal GetQuoteTotal()
+    {
+        if (_editor == null)
+        {
+            return 0m;
+        }
+
+        return _editor.LineItems.Sum(GetLineTotal);
+    }
+
+    private async Task SaveQuoteAsync()
+    {
+        if (!_currentUserId.HasValue || _editor == null)
+        {
+            ToastService.ShowError("Unable to resolve quote context.");
+            return;
+        }
+
+        if (!int.TryParse(_leadTimeDays, out int leadTimeDays) || leadTimeDays < 0)
+        {
+            ToastService.ShowError("Lead time must be a non-negative number.");
+            return;
+        }
+
+        if (!DateTime.TryParse(_validUntil, out DateTime validUntil))
+        {
+            ToastService.ShowError("Valid until date is invalid.");
+            return;
+        }
+
+        List<SaveQuoteLineItemRequest> lineItems = _editor.LineItems
+            .Select(li => new SaveQuoteLineItemRequest
+            {
+                LineItemId = li.LineItemId,
+                UnitPrice = ParseDecimal(GetUnitPrice(li.LineItemId)),
+                Notes = li.Notes
+            })
+            .ToList();
+
+        if (lineItems.All(li => li.UnitPrice <= 0m))
+        {
+            ToastService.ShowError("At least one line item must have a positive unit price.");
+            return;
+        }
+
+        SaveQuoteRequest request = new()
+        {
+            RfqId = _editor.RfqId,
+            LeadTimeDays = leadTimeDays,
+            ValidUntil = validUntil.ToUniversalTime(),
+            PaymentTerms = _paymentTerms,
+            Notes = _notes,
+            LineItems = lineItems
+        };
+
+        _isSaving = true;
+        try
+        {
+            QuoteSaveResponse response = await QuoteSubmissionService.SaveQuoteAsync(_currentUserId.Value, request);
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Failed to submit quote.");
+                return;
+            }
+
+            ToastService.ShowSuccess("Quote submitted successfully.");
+            NavigationManager.NavigateTo("/supplier/quotes");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+
+    private static decimal ParseDecimal(string? value)
+    {
+        if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out decimal parsed))
+        {
+            return parsed;
+        }
+
+        if (decimal.TryParse(value, out parsed))
+        {
+            return parsed;
+        }
+
+        return 0m;
+    }
+}
