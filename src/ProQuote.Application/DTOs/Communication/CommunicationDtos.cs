@@ -113,3 +113,25 @@ public class MessageThreadItemDto
     /// </summary>
     public DateTime SentAt { get; set; }
 }
+
+/// <summary>
+/// Represents a request to post a message in an RFQ thread.
+/// </summary>
+public class SendMessageRequest
+{
+    /// <summary>
+    /// Gets or sets RFQ identifier.
+    /// </summary>
+    public Guid RfqId { get; set; }
+
+    /// <summary>
+    /// Gets or sets message body.
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets optional private target supplier identifier.
+    /// Only used for buyer-originated messages.
+    /// </summary>
+    public Guid? TargetSupplierId { get; set; }
+}
