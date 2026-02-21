@@ -2,10 +2,204 @@
 @rendermode InteractiveServer
 @layout BuyerLayout
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
 
 <PageTitle>Suppliers - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Suppliers</h1>
 <PqCard>
-    <p class="pq-body-sm">This page is available and ready for supplier browsing.</p>
+    <div class="pq-flex pq-gap-2 pq-items-end" style="flex-wrap:wrap;">
+        <div style="min-width:220px;flex:1;">
+            <PqInput Label="Search"
+                     Value="@_searchTerm"
+                     ValueChanged="@(v => _searchTerm = v ?? string.Empty)"
+                     Placeholder="Company, contact, or email..."
+                     Disabled="_isLoading" />
+        </div>
+        <div style="min-width:220px;flex:1;">
+            <PqSelect Label="Category"
+                      Value="@_selectedCategoryId"
+                      ValueChanged="OnCategoryChangedAsync"
+                      Options="_categoryOptions"
+                      Placeholder="All categories"
+                      Disabled="_isLoading" />
+        </div>
+        <PqButton Variant="secondary" OnClick="LoadSuppliersAsync" Loading="_isLoading">Apply</PqButton>
+        <PqButton Variant="ghost" OnClick="ResetFiltersAsync" Disabled="_isLoading">Reset</PqButton>
+    </div>
+
+    @if (_rfqId.HasValue)
+    {
+        <div style="margin-top:var(--pq-space-3);">
+            <PqBadge Variant="pending">Invitation mode for RFQ @_rfqId.Value</PqBadge>
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">Loading suppliers...</p>
+    }
+    else if (_suppliers.Count == 0)
+    {
+        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">No suppliers found.</p>
+    }
+    else
+    {
+        <div style="margin-top:var(--pq-space-3);">
+            <PqTable Headers="_headers">
+                @foreach (Domain.Entities.Supplier supplier in _suppliers)
+                {
+                    <tr>
+                        <td>@supplier.CompanyName</td>
+                        <td>@supplier.ContactName</td>
+                        <td>@supplier.Email</td>
+                        <td>@GetCategorySummary(supplier)</td>
+                        <td>
+                            <PqBadge Variant="published">Approved</PqBadge>
+                        </td>
+                        <td>
+                            @if (_rfqId.HasValue)
+                            {
+                                <a href="@($"/buyer/rfqs/{_rfqId.Value}/invite?supplierId={supplier.Id}")">
+                                    <PqButton Variant="primary" Size="sm">Invite</PqButton>
+                                </a>
+                            }
+                            else
+                            {
+                                <PqButton Variant="ghost" Size="sm" Disabled="true">Select RFQ First</PqButton>
+                            }
+                        </td>
+                    </tr>
+                }
+            </PqTable>
+        </div>
+    }
 </PqCard>
+
+@code {
+    [SupplyParameterFromQuery(Name = "rfqId")]
+    public Guid? RfqId { get; set; }
+
+    private bool _isLoading = true;
+    private Guid? _buyerId;
+    private Guid? _rfqId;
+    private string _searchTerm = string.Empty;
+    private string _selectedCategoryId = string.Empty;
+    private List<Domain.Entities.Supplier> _suppliers = [];
+    private List<PqSelect.SelectOption> _categoryOptions = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Company", Field = "company" },
+        new() { Label = "Contact", Field = "contact" },
+        new() { Label = "Email", Field = "email" },
+        new() { Label = "Categories", Field = "categories" },
+        new() { Label = "Status", Field = "status", Width = "110px" },
+        new() { Label = "Action", Field = "action", Width = "130px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _rfqId = RfqId;
+        await LoadCategoriesAsync();
+        await LoadSuppliersAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _rfqId = RfqId;
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        IReadOnlyList<Domain.Entities.Category> categories = await UnitOfWork.Categories.GetActiveCategoriesAsync();
+        _categoryOptions = categories
+            .OrderBy(c => c.Name)
+            .Select(c => new PqSelect.SelectOption
+            {
+                Value = c.Id.ToString(),
+                Label = c.Name
+            })
+            .ToList();
+    }
+
+    private async Task LoadSuppliersAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _buyerId ??= await ResolveBuyerUserIdAsync();
+            if (!_buyerId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            IReadOnlyList<Domain.Entities.Supplier> suppliers;
+            if (!string.IsNullOrWhiteSpace(_searchTerm))
+            {
+                suppliers = await UnitOfWork.Suppliers.SearchAsync(_searchTerm.Trim());
+            }
+            else if (Guid.TryParse(_selectedCategoryId, out Guid categoryId))
+            {
+                suppliers = await UnitOfWork.Suppliers.GetByCategoryAsync(categoryId);
+            }
+            else
+            {
+                suppliers = await UnitOfWork.Suppliers.GetByStatusAsync(Domain.Enums.SupplierStatus.Approved);
+            }
+
+            if (Guid.TryParse(_selectedCategoryId, out Guid categoryFilter))
+            {
+                suppliers = suppliers
+                    .Where(s => s.Categories.Any(c => c.CategoryId == categoryFilter))
+                    .ToList();
+            }
+
+            _suppliers = suppliers.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load suppliers");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Task OnCategoryChangedAsync(string? value)
+    {
+        _selectedCategoryId = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task ResetFiltersAsync()
+    {
+        _searchTerm = string.Empty;
+        _selectedCategoryId = string.Empty;
+        await LoadSuppliersAsync();
+    }
+
+    private async Task<Guid?> ResolveBuyerUserIdAsync()
+    {
+        AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userIdClaim = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out Guid parsed) ? parsed : null;
+    }
+
+    private static string GetCategorySummary(Domain.Entities.Supplier supplier)
+    {
+        if (supplier.Categories.Count == 0)
+        {
+            return "None";
+        }
+
+        return string.Join(", ", supplier.Categories.Select(c => c.Category.Name));
+    }
+}

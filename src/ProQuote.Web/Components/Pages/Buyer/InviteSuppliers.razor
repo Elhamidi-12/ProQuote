@@ -101,6 +101,7 @@ else
 
 @code {
     [Parameter] public Guid RfqId { get; set; }
+    [SupplyParameterFromQuery(Name = "supplierId")] public Guid? SupplierId { get; set; }
 
     private bool _isLoading = true;
     private bool _isSubmitting;
@@ -143,6 +144,15 @@ else
             }
 
             _selectedSupplierIds.Clear();
+            if (SupplierId.HasValue)
+            {
+                BuyerInvitationSupplierCandidateDto? candidate = _context.Candidates
+                    .FirstOrDefault(c => c.SupplierId == SupplierId.Value && !c.AlreadyInvited);
+                if (candidate != null)
+                {
+                    _selectedSupplierIds.Add(candidate.SupplierId);
+                }
+            }
         }
         catch (Exception ex)
         {
