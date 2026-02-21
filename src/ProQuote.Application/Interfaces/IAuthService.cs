@@ -1,4 +1,5 @@
 using ProQuote.Application.DTOs.Auth;
+using ProQuote.Application.DTOs.Profile;
 
 namespace ProQuote.Application.Interfaces;
 
@@ -51,6 +52,37 @@ public interface IAuthService
     /// <param name="userId">The user identifier.</param>
     /// <returns>The user information.</returns>
     public Task<UserDto?> GetCurrentUserAsync(Guid userId);
+
+    /// <summary>
+    /// Gets the full profile for the authenticated user.
+    /// </summary>
+    /// <param name="userId">The user identifier.</param>
+    /// <returns>The user profile, or null if user is not found.</returns>
+    public Task<UserProfileDto?> GetUserProfileAsync(Guid userId);
+
+    /// <summary>
+    /// Updates profile information for the authenticated user.
+    /// </summary>
+    /// <param name="userId">The user identifier.</param>
+    /// <param name="request">The update request.</param>
+    /// <returns>Operation result containing updated user data on success.</returns>
+    public Task<AuthResponse> UpdateUserProfileAsync(Guid userId, UpdateUserProfileRequest request);
+
+    /// <summary>
+    /// Updates settings information for the authenticated user.
+    /// </summary>
+    /// <param name="userId">The user identifier.</param>
+    /// <param name="request">The update request.</param>
+    /// <returns>Operation result containing updated user data on success.</returns>
+    public Task<AuthResponse> UpdateUserSettingsAsync(Guid userId, UpdateUserSettingsRequest request);
+
+    /// <summary>
+    /// Updates supplier profile information for an authenticated supplier user.
+    /// </summary>
+    /// <param name="userId">The user identifier.</param>
+    /// <param name="request">The supplier profile update request.</param>
+    /// <returns>Operation result containing updated user data on success.</returns>
+    public Task<AuthResponse> UpdateSupplierProfileAsync(Guid userId, UpdateSupplierProfileRequest request);
 
     /// <summary>
     /// Revokes all refresh tokens for a user.

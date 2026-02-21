@@ -1,4 +1,171 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Profile
+@inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CustomAuthStateProvider CustomAuthStateProvider
+@inject ToastService ToastService
+
 <h1 class="pq-section-title">Settings</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for user settings configuration.</p>
-</PqCard>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading settings...</p>
+    </PqCard>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <PqCard>
+        <p class="pq-body-sm" style="color:var(--pq-danger-text)">@_loadError</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <h2 class="pq-card-title">Preferences</h2>
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                <PqInput Label="Timezone ID" Value="@_settings.TimeZoneId" ValueChanged="@(v => _settings.TimeZoneId = v)" Placeholder="e.g. UTC or America/New_York" Disabled="_isSaving" />
+                <PqInput Label="Locale" Value="@_settings.Locale" ValueChanged="@(v => _settings.Locale = v)" Placeholder="e.g. en-US" Disabled="_isSaving" />
+                <div style="display:flex;justify-content:flex-end;">
+                    <PqButton Variant="primary" OnClick="SaveSettingsAsync" Loading="_isSaving">Save Settings</PqButton>
+                </div>
+            </div>
+        </PqCard>
+
+        <PqCard>
+            <h2 class="pq-card-title">Security</h2>
+            <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">
+                Revoke all active refresh tokens to sign out other active sessions.
+            </p>
+            <div style="margin-top:var(--pq-space-3);display:flex;justify-content:flex-end;">
+                <PqButton Variant="danger" OnClick="RevokeAllSessionsAsync" Loading="_isRevokingSessions">Sign Out Other Sessions</PqButton>
+            </div>
+        </PqCard>
+    </div>
+}
+
+@code {
+    private UpdateUserSettingsRequest _settings = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isRevokingSessions;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettingsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            Guid? userId = await GetCurrentUserIdAsync();
+            if (!userId.HasValue)
+            {
+                _loadError = "Unable to resolve current user.";
+                return;
+            }
+
+            UserProfileDto? profile = await AuthService.GetUserProfileAsync(userId.Value);
+            if (profile == null)
+            {
+                _loadError = "Settings were not found.";
+                return;
+            }
+
+            _settings = new UpdateUserSettingsRequest
+            {
+                TimeZoneId = profile.TimeZoneId,
+                Locale = profile.Locale
+            };
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        Guid? userId = await GetCurrentUserIdAsync();
+        if (!userId.HasValue)
+        {
+            ToastService.ShowError("Unable to resolve current user.");
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            AuthResponse response = await AuthService.UpdateUserSettingsAsync(userId.Value, _settings);
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to save settings.");
+                return;
+            }
+
+            if (response.User != null)
+            {
+                await CustomAuthStateProvider.UpdateUserDataAsync(response.User);
+            }
+
+            ToastService.ShowSuccess("Settings updated.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task RevokeAllSessionsAsync()
+    {
+        Guid? userId = await GetCurrentUserIdAsync();
+        if (!userId.HasValue)
+        {
+            ToastService.ShowError("Unable to resolve current user.");
+            return;
+        }
+
+        _isRevokingSessions = true;
+        try
+        {
+            bool revoked = await AuthService.RevokeAllTokensAsync(userId.Value);
+            if (!revoked)
+            {
+                ToastService.ShowError("Unable to revoke sessions.");
+                return;
+            }
+
+            ToastService.ShowSuccess("Other sessions have been signed out.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isRevokingSessions = false;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+}

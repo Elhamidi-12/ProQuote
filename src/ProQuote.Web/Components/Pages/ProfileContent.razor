@@ -1,4 +1,227 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Profile
+@inject IAuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CustomAuthStateProvider CustomAuthStateProvider
+@inject ToastService ToastService
+
 <h1 class="pq-section-title">Profile</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for user profile management.</p>
-</PqCard>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading profile...</p>
+    </PqCard>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <PqCard>
+        <p class="pq-body-sm" style="color:var(--pq-danger-text)">@_loadError</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <h2 class="pq-card-title">Personal Information</h2>
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                <PqInput Label="Email" Value="@_profile.Email" Disabled="true" />
+                <PqInput Label="First Name" Value="@_profile.FirstName" ValueChanged="@(v => _profile.FirstName = v ?? string.Empty)" Disabled="_isSavingProfile" />
+                <PqInput Label="Last Name" Value="@_profile.LastName" ValueChanged="@(v => _profile.LastName = v ?? string.Empty)" Disabled="_isSavingProfile" />
+                <PqInput Label="Phone Number" Value="@_profile.PhoneNumber" ValueChanged="@(v => _profile.PhoneNumber = v)" Disabled="_isSavingProfile" />
+                <PqInput Label="Job Title" Value="@_profile.JobTitle" ValueChanged="@(v => _profile.JobTitle = v)" Disabled="_isSavingProfile" />
+                <PqInput Label="Department" Value="@_profile.Department" ValueChanged="@(v => _profile.Department = v)" Disabled="_isSavingProfile" />
+                <PqInput Label="Profile Picture URL" Value="@_profile.ProfilePictureUrl" ValueChanged="@(v => _profile.ProfilePictureUrl = v)" Disabled="_isSavingProfile" />
+                <div style="display:flex;justify-content:flex-end;">
+                    <PqButton Variant="primary" OnClick="SaveUserProfileAsync" Loading="_isSavingProfile">Save Profile</PqButton>
+                </div>
+            </div>
+        </PqCard>
+
+        @if (_profile.IsSupplier && _profile.Supplier is not null)
+        {
+            <PqCard>
+                <div class="pq-flex pq-justify-between pq-items-center">
+                    <h2 class="pq-card-title">Supplier Information</h2>
+                    <PqBadge Variant="@GetSupplierStatusVariant(_profile.Supplier.Status)">
+                        @_profile.Supplier.Status
+                    </PqBadge>
+                </div>
+                <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                    <PqInput Label="Company Name" Value="@_profile.Supplier.CompanyName" ValueChanged="@(v => _profile.Supplier.CompanyName = v ?? string.Empty)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="Contact Name" Value="@_profile.Supplier.ContactName" ValueChanged="@(v => _profile.Supplier.ContactName = v ?? string.Empty)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="Email" Value="@_profile.Supplier.Email" Disabled="true" />
+                    <PqInput Label="Phone" Value="@_profile.Supplier.Phone" ValueChanged="@(v => _profile.Supplier.Phone = v)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="Website" Value="@_profile.Supplier.Website" ValueChanged="@(v => _profile.Supplier.Website = v)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="Address" Value="@_profile.Supplier.Address" ValueChanged="@(v => _profile.Supplier.Address = v)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="City" Value="@_profile.Supplier.City" ValueChanged="@(v => _profile.Supplier.City = v)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="Country" Value="@_profile.Supplier.Country" ValueChanged="@(v => _profile.Supplier.Country = v)" Disabled="_isSavingSupplier" />
+                    <PqInput Label="Tax ID" Value="@_profile.Supplier.TaxId" ValueChanged="@(v => _profile.Supplier.TaxId = v)" Disabled="_isSavingSupplier" />
+                    <div style="display:flex;justify-content:flex-end;">
+                        <PqButton Variant="primary" OnClick="SaveSupplierProfileAsync" Loading="_isSavingSupplier">Save Supplier Profile</PqButton>
+                    </div>
+                </div>
+            </PqCard>
+        }
+    </div>
+}
+
+@code {
+    private UserProfileDto _profile = new();
+    private bool _isLoading = true;
+    private bool _isSavingProfile;
+    private bool _isSavingSupplier;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            Guid? userId = await GetCurrentUserIdAsync();
+            if (!userId.HasValue)
+            {
+                _loadError = "Unable to resolve current user.";
+                return;
+            }
+
+            UserProfileDto? profile = await AuthService.GetUserProfileAsync(userId.Value);
+            if (profile == null)
+            {
+                _loadError = "Profile was not found.";
+                return;
+            }
+
+            _profile = profile;
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveUserProfileAsync()
+    {
+        Guid? userId = await GetCurrentUserIdAsync();
+        if (!userId.HasValue)
+        {
+            ToastService.ShowError("Unable to resolve current user.");
+            return;
+        }
+
+        _isSavingProfile = true;
+        try
+        {
+            UpdateUserProfileRequest request = new()
+            {
+                FirstName = _profile.FirstName,
+                LastName = _profile.LastName,
+                PhoneNumber = _profile.PhoneNumber,
+                JobTitle = _profile.JobTitle,
+                Department = _profile.Department,
+                ProfilePictureUrl = _profile.ProfilePictureUrl
+            };
+
+            AuthResponse response = await AuthService.UpdateUserProfileAsync(userId.Value, request);
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to save profile.");
+                return;
+            }
+
+            if (response.User != null)
+            {
+                await CustomAuthStateProvider.UpdateUserDataAsync(response.User);
+            }
+
+            ToastService.ShowSuccess("Profile updated.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isSavingProfile = false;
+        }
+    }
+
+    private async Task SaveSupplierProfileAsync()
+    {
+        if (_profile.Supplier == null)
+        {
+            return;
+        }
+
+        Guid? userId = await GetCurrentUserIdAsync();
+        if (!userId.HasValue)
+        {
+            ToastService.ShowError("Unable to resolve current user.");
+            return;
+        }
+
+        _isSavingSupplier = true;
+        try
+        {
+            UpdateSupplierProfileRequest request = new()
+            {
+                CompanyName = _profile.Supplier.CompanyName,
+                ContactName = _profile.Supplier.ContactName,
+                Phone = _profile.Supplier.Phone,
+                Website = _profile.Supplier.Website,
+                Address = _profile.Supplier.Address,
+                City = _profile.Supplier.City,
+                Country = _profile.Supplier.Country,
+                TaxId = _profile.Supplier.TaxId
+            };
+
+            AuthResponse response = await AuthService.UpdateSupplierProfileAsync(userId.Value, request);
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to save supplier profile.");
+                return;
+            }
+
+            ToastService.ShowSuccess("Supplier profile updated.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isSavingSupplier = false;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+
+    private static string GetSupplierStatusVariant(Domain.Enums.SupplierStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.SupplierStatus.Approved => "awarded",
+            Domain.Enums.SupplierStatus.Pending => "pending",
+            Domain.Enums.SupplierStatus.Rejected => "expired",
+            Domain.Enums.SupplierStatus.Suspended => "cancelled",
+            _ => "default"
+        };
+    }
+}

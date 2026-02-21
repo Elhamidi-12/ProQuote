@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 
 using ProQuote.Application.Common;
 using ProQuote.Application.DTOs.Auth;
+using ProQuote.Application.DTOs.Profile;
 using ProQuote.Application.Interfaces;
 using ProQuote.Domain.Entities;
 using ProQuote.Domain.Enums;
@@ -363,6 +364,133 @@ public class AuthService : IAuthService
     }
 
     /// <inheritdoc />
+    public async Task<UserProfileDto?> GetUserProfileAsync(Guid userId)
+    {
+        ApplicationUserIdentity? user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return null;
+        }
+
+        return await CreateUserProfileDtoAsync(user);
+    }
+
+    /// <inheritdoc />
+    public async Task<AuthResponse> UpdateUserProfileAsync(Guid userId, UpdateUserProfileRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        ApplicationUserIdentity? user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return AuthResponse.Failure("User not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+        {
+            return AuthResponse.Failure("First name and last name are required.");
+        }
+
+        user.FirstName = request.FirstName.Trim();
+        user.LastName = request.LastName.Trim();
+        user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+        user.JobTitle = string.IsNullOrWhiteSpace(request.JobTitle) ? null : request.JobTitle.Trim();
+        user.Department = string.IsNullOrWhiteSpace(request.Department) ? null : request.Department.Trim();
+        user.ProfilePictureUrl = string.IsNullOrWhiteSpace(request.ProfilePictureUrl) ? null : request.ProfilePictureUrl.Trim();
+
+        IdentityResult result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return AuthResponse.Failure(result.Errors.Select(e => e.Description));
+        }
+
+        IList<string> roles = await _userManager.GetRolesAsync(user);
+        return new AuthResponse
+        {
+            Succeeded = true,
+            User = await CreateUserDtoAsync(user, roles)
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<AuthResponse> UpdateUserSettingsAsync(Guid userId, UpdateUserSettingsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        ApplicationUserIdentity? user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return AuthResponse.Failure("User not found.");
+        }
+
+        user.TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId) ? null : request.TimeZoneId.Trim();
+        user.Locale = string.IsNullOrWhiteSpace(request.Locale) ? null : request.Locale.Trim();
+
+        IdentityResult result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return AuthResponse.Failure(result.Errors.Select(e => e.Description));
+        }
+
+        IList<string> roles = await _userManager.GetRolesAsync(user);
+        return new AuthResponse
+        {
+            Succeeded = true,
+            User = await CreateUserDtoAsync(user, roles)
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<AuthResponse> UpdateSupplierProfileAsync(Guid userId, UpdateSupplierProfileRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        Supplier? supplier = await _context.Suppliers.FirstOrDefaultAsync(s => s.UserId == userId);
+        if (supplier == null)
+        {
+            return AuthResponse.Failure("Supplier profile not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CompanyName) || string.IsNullOrWhiteSpace(request.ContactName))
+        {
+            return AuthResponse.Failure("Company name and contact name are required.");
+        }
+
+        bool companyNameTaken = await _context.Suppliers
+            .AnyAsync(s => s.Id != supplier.Id && s.CompanyName == request.CompanyName.Trim());
+
+        if (companyNameTaken)
+        {
+            return AuthResponse.Failure("A supplier with this company name already exists.");
+        }
+
+        supplier.CompanyName = request.CompanyName.Trim();
+        supplier.ContactName = request.ContactName.Trim();
+        supplier.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+        supplier.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
+        supplier.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        supplier.City = string.IsNullOrWhiteSpace(request.City) ? null : request.City.Trim();
+        supplier.Country = string.IsNullOrWhiteSpace(request.Country) ? null : request.Country.Trim();
+        supplier.TaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
+
+        _context.Suppliers.Update(supplier);
+        await _context.SaveChangesAsync();
+
+        ApplicationUserIdentity? user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return AuthResponse.Failure("User not found.");
+        }
+
+        IList<string> roles = await _userManager.GetRolesAsync(user);
+        return new AuthResponse
+        {
+            Succeeded = true,
+            User = await CreateUserDtoAsync(user, roles)
+        };
+    }
+
+    /// <inheritdoc />
     public async Task<bool> RevokeAllTokensAsync(Guid userId, string? ipAddress = null)
     {
         List<RefreshToken> tokens = await _context.RefreshTokens
@@ -528,6 +656,45 @@ public class AuthService : IAuthService
         }
 
         return dto;
+    }
+
+    /// <summary>
+    /// Creates a user profile DTO.
+    /// </summary>
+    private async Task<UserProfileDto> CreateUserProfileDtoAsync(ApplicationUserIdentity user)
+    {
+        Supplier? supplier = await _context.Suppliers.FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+        return new UserProfileDto
+        {
+            UserId = user.Id,
+            Email = user.Email ?? string.Empty,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            PhoneNumber = user.PhoneNumber,
+            JobTitle = user.JobTitle,
+            Department = user.Department,
+            ProfilePictureUrl = user.ProfilePictureUrl,
+            TimeZoneId = user.TimeZoneId,
+            Locale = user.Locale,
+            IsSupplier = supplier != null,
+            Supplier = supplier == null
+                ? null
+                : new SupplierProfileDto
+                {
+                    SupplierId = supplier.Id,
+                    CompanyName = supplier.CompanyName,
+                    ContactName = supplier.ContactName,
+                    Email = supplier.Email,
+                    Phone = supplier.Phone,
+                    Website = supplier.Website,
+                    Address = supplier.Address,
+                    City = supplier.City,
+                    Country = supplier.Country,
+                    TaxId = supplier.TaxId,
+                    Status = supplier.Status
+                }
+        };
     }
 
     #endregion

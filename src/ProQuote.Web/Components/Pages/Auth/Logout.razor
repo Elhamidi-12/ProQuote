@@ -1,0 +1,18 @@
+@page "/logout"
+@rendermode InteractiveServer
+@inject CustomAuthStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Signing Out - ProQuote</PageTitle>
+
+<PqCard>
+    <p class="pq-body-sm">Signing you out...</p>
+</PqCard>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateProvider.MarkUserAsLoggedOutAsync();
+        NavigationManager.NavigateTo("/login", replace: true);
+    }
+}

@@ -85,10 +85,10 @@
         return Task.CompletedTask;
     }
 
-    private async Task HandleLogoutAsync()
+    private Task HandleLogoutAsync()
     {
-        await AuthStateProvider.MarkUserAsLoggedOutAsync();
-        NavigationManager.NavigateTo("/login");
+        NavigationManager.NavigateTo("/logout");
+        return Task.CompletedTask;
     }
 
     private string GetProfileRoute()

@@ -2,10 +2,8 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using ProQuote.Infrastructure.Identity
 
 <PageTitle>Admin Settings - ProQuote</PageTitle>
 
-<h1 class="pq-section-title">Settings</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for admin settings configuration.</p>
-</PqCard>
+<SettingsContent />

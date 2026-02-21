@@ -140,6 +140,28 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     }
 
     /// <summary>
+    /// Updates the cached user data while keeping existing token state.
+    /// </summary>
+    /// <param name="user">The updated user data.</param>
+    public async Task UpdateUserDataAsync(UserDto user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        try
+        {
+            await _localStorage.SetAsync(UserDataKey, user);
+        }
+        catch (InvalidOperationException)
+        {
+            // Ignore when storage is unavailable during prerender.
+        }
+
+        ClaimsPrincipal principal = CreateClaimsPrincipal(user);
+        _currentUser = principal;
+        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(principal)));
+    }
+
+    /// <summary>
     /// Gets the current access token.
     /// </summary>
     /// <returns>The access token, or null if not authenticated.</returns>

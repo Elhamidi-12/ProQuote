@@ -2,10 +2,227 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@inject ToastService ToastService
 
 <PageTitle>Pending Suppliers - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Pending Suppliers</h1>
 <PqCard>
-    <p class="pq-body-sm">This page is available and ready for supplier approval workflows.</p>
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm">Loading pending suppliers...</p>
+    }
+    else if (_pendingSuppliers.Count == 0)
+    {
+        <p class="pq-body-sm">No pending supplier registrations.</p>
+    }
+    else
+    {
+        <PqTable Headers="_headers">
+            @foreach (Domain.Entities.Supplier supplier in _pendingSuppliers)
+            {
+                <tr>
+                    <td>@supplier.CompanyName</td>
+                    <td>@supplier.ContactName</td>
+                    <td>@supplier.Email</td>
+                    <td>@supplier.RegisteredAt.ToString("MMM dd, yyyy")</td>
+                    <td>@GetCategorySummary(supplier)</td>
+                    <td><PqBadge Variant="pending">Pending</PqBadge></td>
+                    <td>
+                        <div style="display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
+                            <PqButton Variant="primary"
+                                      Size="sm"
+                                      OnClick="@(() => ApproveSupplierAsync(supplier.Id))"
+                                      Loading="@(_busySupplierId == supplier.Id && _busyAction == ApprovalAction.Approve)">
+                                Approve
+                            </PqButton>
+                            <PqButton Variant="danger"
+                                      Size="sm"
+                                      Disabled="_busySupplierId == supplier.Id"
+                                      OnClick="@(() => OpenRejectModal(supplier.Id))">
+                                Reject
+                            </PqButton>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </PqTable>
+    }
 </PqCard>
+
+<PqModal @bind-IsOpen="_isRejectModalOpen" Title="Reject Supplier" Size="md">
+    <ChildContent>
+        @if (_rejectSupplier is not null)
+        {
+            <div class="pq-flex pq-flex-col pq-gap-3">
+                <p class="pq-body-sm">
+                    You are rejecting <strong>@_rejectSupplier.CompanyName</strong>. Provide a reason to keep an audit trail.
+                </p>
+                <PqTextarea Label="Rejection Reason"
+                            Value="@_rejectionReason"
+                            ValueChanged="@(v => _rejectionReason = v ?? string.Empty)"
+                            Placeholder="Reason for rejection..."
+                            Disabled="_isSubmittingRejection" />
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;">
+            <PqButton Variant="ghost" OnClick="CloseRejectModal" Disabled="_isSubmittingRejection">Cancel</PqButton>
+            <PqButton Variant="danger" OnClick="RejectSupplierAsync" Loading="_isSubmittingRejection">Confirm Reject</PqButton>
+        </div>
+    </Footer>
+</PqModal>
+
+@code {
+    private List<Domain.Entities.Supplier> _pendingSuppliers = [];
+    private bool _isLoading = true;
+    private Guid? _busySupplierId;
+    private ApprovalAction? _busyAction;
+
+    private bool _isRejectModalOpen;
+    private bool _isSubmittingRejection;
+    private Domain.Entities.Supplier? _rejectSupplier;
+    private string _rejectionReason = string.Empty;
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Company", Field = "company" },
+        new() { Label = "Contact", Field = "contact" },
+        new() { Label = "Email", Field = "email" },
+        new() { Label = "Registered", Field = "registered" },
+        new() { Label = "Categories", Field = "categories" },
+        new() { Label = "Status", Field = "status" },
+        new() { Label = "Actions", Field = "actions", Width = "220px" }
+    ];
+
+    [Inject] private IUnitOfWork UnitOfWork { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPendingSuppliersAsync();
+    }
+
+    private async Task LoadPendingSuppliersAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            IReadOnlyList<Domain.Entities.Supplier> pendingSuppliers =
+                await UnitOfWork.Suppliers.GetByStatusAsync(Domain.Enums.SupplierStatus.Pending);
+
+            _pendingSuppliers = pendingSuppliers.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load suppliers");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ApproveSupplierAsync(Guid supplierId)
+    {
+        Domain.Entities.Supplier? supplier = _pendingSuppliers.FirstOrDefault(s => s.Id == supplierId);
+        if (supplier is null)
+        {
+            return;
+        }
+
+        _busySupplierId = supplierId;
+        _busyAction = ApprovalAction.Approve;
+
+        try
+        {
+            supplier.Status = Domain.Enums.SupplierStatus.Approved;
+            supplier.ApprovedAt = DateTime.UtcNow;
+            supplier.StatusReason = null;
+            UnitOfWork.Suppliers.Update(supplier);
+            await UnitOfWork.SaveChangesAsync();
+
+            _pendingSuppliers.Remove(supplier);
+            ToastService.ShowSuccess($"{supplier.CompanyName} approved.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Approval failed");
+        }
+        finally
+        {
+            _busySupplierId = null;
+            _busyAction = null;
+        }
+    }
+
+    private void OpenRejectModal(Guid supplierId)
+    {
+        _rejectSupplier = _pendingSuppliers.FirstOrDefault(s => s.Id == supplierId);
+        _rejectionReason = string.Empty;
+        _isRejectModalOpen = _rejectSupplier is not null;
+    }
+
+    private Task CloseRejectModal()
+    {
+        _isRejectModalOpen = false;
+        _rejectSupplier = null;
+        _rejectionReason = string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task RejectSupplierAsync()
+    {
+        if (_rejectSupplier is null)
+        {
+            return;
+        }
+
+        _busySupplierId = _rejectSupplier.Id;
+        _busyAction = ApprovalAction.Reject;
+        _isSubmittingRejection = true;
+
+        try
+        {
+            _rejectSupplier.Status = Domain.Enums.SupplierStatus.Rejected;
+            _rejectSupplier.ApprovedAt = null;
+            _rejectSupplier.StatusReason = string.IsNullOrWhiteSpace(_rejectionReason)
+                ? "Rejected by admin."
+                : _rejectionReason.Trim();
+
+            UnitOfWork.Suppliers.Update(_rejectSupplier);
+            await UnitOfWork.SaveChangesAsync();
+
+            _pendingSuppliers.Remove(_rejectSupplier);
+            ToastService.ShowSuccess($"{_rejectSupplier.CompanyName} rejected.");
+            await CloseRejectModal();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Rejection failed");
+        }
+        finally
+        {
+            _busySupplierId = null;
+            _busyAction = null;
+            _isSubmittingRejection = false;
+        }
+    }
+
+    private static string GetCategorySummary(Domain.Entities.Supplier supplier)
+    {
+        if (supplier.Categories.Count == 0)
+        {
+            return "None";
+        }
+
+        return string.Join(", ", supplier.Categories.Select(c => c.Category.Name));
+    }
+
+    private enum ApprovalAction
+    {
+        Approve,
+        Reject
+    }
+}
