@@ -1,0 +1,248 @@
+@page "/buyer/rfqs/{RfqId:guid}/invite"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Invitations
+@inject IBuyerRfqInvitationService InvitationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject ToastService ToastService
+
+<PageTitle>Invite Suppliers - ProQuote</PageTitle>
+
+<h1 class="pq-section-title">Invite Suppliers</h1>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading invitation context...</p>
+    </PqCard>
+}
+else if (_context is null)
+{
+    <PqCard>
+        <p class="pq-body-sm">RFQ invitation context is unavailable.</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <h2 class="pq-card-title">@_context.ReferenceNumber - @_context.Title</h2>
+            <div class="pq-flex pq-gap-2" style="flex-wrap:wrap;margin-top:var(--pq-space-2);">
+                <PqBadge Variant="published">Category: @_context.CategoryName</PqBadge>
+                <PqBadge Variant="@GetStatusBadgeVariant(_context.Status)">@_context.Status</PqBadge>
+                <PqBadge Variant="pending">Deadline: @_context.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</PqBadge>
+            </div>
+        </PqCard>
+
+        <PqCard>
+            @if (_context.Candidates.Count == 0)
+            {
+                <p class="pq-body-sm">No approved suppliers available.</p>
+            }
+            else
+            {
+                <div class="pq-flex pq-justify-between pq-items-center" style="margin-bottom:var(--pq-space-3);gap:var(--pq-space-2);flex-wrap:wrap;">
+                    <p class="pq-body-sm">Select suppliers to invite. Already-invited suppliers are read-only.</p>
+                    <PqButton Variant="ghost" Size="sm" OnClick="SelectCategoryMatchesAsync">Select Category Matches</PqButton>
+                </div>
+
+                <PqTable Headers="_headers">
+                    @foreach (BuyerInvitationSupplierCandidateDto supplier in _context.Candidates)
+                    {
+                        bool selectable = !supplier.AlreadyInvited;
+                        <tr>
+                            <td>
+                                <input type="checkbox"
+                                       checked="@IsSelected(supplier.SupplierId)"
+                                       disabled="@(!selectable || _isSubmitting)"
+                                       @onchange="@((ChangeEventArgs e) => ToggleSelection(supplier.SupplierId, e))" />
+                            </td>
+                            <td>@supplier.CompanyName</td>
+                            <td>@supplier.ContactName</td>
+                            <td>@supplier.Email</td>
+                            <td>
+                                @if (supplier.CategoryMatch)
+                                {
+                                    <PqBadge Variant="published">Match</PqBadge>
+                                }
+                                else
+                                {
+                                    <PqBadge Variant="default">Other</PqBadge>
+                                }
+                            </td>
+                            <td>
+                                @if (supplier.AlreadyInvited)
+                                {
+                                    <PqBadge Variant="pending">Invited (@supplier.InvitationStatus)</PqBadge>
+                                }
+                                else
+                                {
+                                    <PqBadge Variant="default">Not invited</PqBadge>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </PqTable>
+            }
+        </PqCard>
+
+        <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;flex-wrap:wrap;">
+            <a href="/buyer/rfqs"><PqButton Variant="ghost">Back</PqButton></a>
+            <PqButton Variant="primary" OnClick="SendInvitesAsync" Loading="_isSubmitting">
+                Send Invitations (@_selectedSupplierIds.Count)
+            </PqButton>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid RfqId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private Guid? _buyerUserId;
+    private BuyerRfqInvitationContextDto? _context;
+    private HashSet<Guid> _selectedSupplierIds = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "", Field = "select", Width = "48px" },
+        new() { Label = "Company", Field = "company" },
+        new() { Label = "Contact", Field = "contact" },
+        new() { Label = "Email", Field = "email" },
+        new() { Label = "Category", Field = "category", Width = "120px" },
+        new() { Label = "Invitation", Field = "invitation", Width = "180px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _buyerUserId = await GetCurrentUserIdAsync();
+            if (!_buyerUserId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            _context = await InvitationService.GetInvitationContextAsync(_buyerUserId.Value, RfqId);
+            if (_context == null)
+            {
+                ToastService.ShowError("RFQ invitation context not found.");
+                return;
+            }
+
+            _selectedSupplierIds.Clear();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load invitation context");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private bool IsSelected(Guid supplierId)
+    {
+        return _selectedSupplierIds.Contains(supplierId);
+    }
+
+    private void ToggleSelection(Guid supplierId, ChangeEventArgs args)
+    {
+        bool isChecked = args.Value?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        if (isChecked)
+        {
+            _selectedSupplierIds.Add(supplierId);
+        }
+        else
+        {
+            _selectedSupplierIds.Remove(supplierId);
+        }
+    }
+
+    private Task SelectCategoryMatchesAsync()
+    {
+        if (_context == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _selectedSupplierIds = _context.Candidates
+            .Where(c => c.CategoryMatch && !c.AlreadyInvited)
+            .Select(c => c.SupplierId)
+            .ToHashSet();
+        return Task.CompletedTask;
+    }
+
+    private async Task SendInvitesAsync()
+    {
+        if (!_buyerUserId.HasValue || _context == null)
+        {
+            ToastService.ShowError("Invitation context is missing.");
+            return;
+        }
+
+        if (_selectedSupplierIds.Count == 0)
+        {
+            ToastService.ShowError("Select at least one supplier to invite.");
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            SendRfqInvitationsResponse response = await InvitationService.SendInvitationsAsync(
+                _buyerUserId.Value,
+                _context.RfqId,
+                _selectedSupplierIds.ToList());
+
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.Message ?? "Failed to send invitations.");
+                return;
+            }
+
+            ToastService.ShowSuccess(response.Message ?? $"Invitations sent: {response.SentCount}");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to send invitations");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
+    }
+
+    private static string GetStatusBadgeVariant(Domain.Enums.RfqStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.RfqStatus.Published => "published",
+            Domain.Enums.RfqStatus.QuotesReceived => "pending",
+            Domain.Enums.RfqStatus.UnderEvaluation => "pending",
+            Domain.Enums.RfqStatus.Awarded => "awarded",
+            _ => "default"
+        };
+    }
+}

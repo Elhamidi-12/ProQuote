@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using ProQuote.Application.DTOs.Invitations;
 using ProQuote.Application.DTOs.Quotes;
 using ProQuote.Application.Interfaces;
 using ProQuote.Domain.Entities;
@@ -21,6 +22,7 @@ public class BuyerRfqsController : ApiControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBuyerQuoteManagementService _buyerQuoteManagementService;
+    private readonly IBuyerRfqInvitationService _buyerRfqInvitationService;
     private readonly IAuditLogService _auditLogService;
 
     /// <summary>
@@ -28,14 +30,17 @@ public class BuyerRfqsController : ApiControllerBase
     /// </summary>
     /// <param name="unitOfWork">Unit of work.</param>
     /// <param name="buyerQuoteManagementService">Buyer quote management service.</param>
+    /// <param name="buyerRfqInvitationService">Buyer RFQ invitation service.</param>
     /// <param name="auditLogService">Audit log service.</param>
     public BuyerRfqsController(
         IUnitOfWork unitOfWork,
         IBuyerQuoteManagementService buyerQuoteManagementService,
+        IBuyerRfqInvitationService buyerRfqInvitationService,
         IAuditLogService auditLogService)
     {
         _unitOfWork = unitOfWork;
         _buyerQuoteManagementService = buyerQuoteManagementService;
+        _buyerRfqInvitationService = buyerRfqInvitationService;
         _auditLogService = auditLogService;
     }
 
@@ -272,6 +277,45 @@ public class BuyerRfqsController : ApiControllerBase
             request?.BuyerNotes);
 
         return result.Succeeded ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>
+    /// Gets supplier invitation context for buyer RFQ.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <returns>Invitation context.</returns>
+    [HttpGet("{id:guid}/invitations/context")]
+    public async Task<IActionResult> GetInvitationContext(Guid id)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        BuyerRfqInvitationContextDto? context = await _buyerRfqInvitationService.GetInvitationContextAsync(CurrentUserId.Value, id);
+        return context == null ? NotFound() : Ok(context);
+    }
+
+    /// <summary>
+    /// Sends invitations to selected suppliers.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <param name="request">Supplier invitation request.</param>
+    /// <returns>Send result.</returns>
+    [HttpPost("{id:guid}/invitations/send")]
+    public async Task<IActionResult> SendInvitations(Guid id, [FromBody] SendRfqInvitationsRequest request)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        SendRfqInvitationsResponse response = await _buyerRfqInvitationService.SendInvitationsAsync(
+            CurrentUserId.Value,
+            id,
+            request?.SupplierIds ?? []);
+
+        return response.Succeeded ? Ok(response) : BadRequest(response);
     }
 
     private static bool TryValidateRequest(SaveBuyerRfqRequest request, out string error)

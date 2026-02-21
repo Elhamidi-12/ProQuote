@@ -33,6 +33,12 @@
                                     <PqButton Variant="secondary" Size="sm">Edit</PqButton>
                                 </a>
                             }
+                            @if (rfq.Status == Domain.Enums.RfqStatus.Published || rfq.Status == Domain.Enums.RfqStatus.QuotesReceived)
+                            {
+                                <a href="@($"/buyer/rfqs/{rfq.Id}/invite")">
+                                    <PqButton Variant="secondary" Size="sm">Invite</PqButton>
+                                </a>
+                            }
                             <a href="@($"/buyer/messages?rfqId={rfq.Id}")">
                                 <PqButton Variant="ghost" Size="sm">Messages</PqButton>
                             </a>
@@ -58,7 +64,7 @@
         new() { Label = "Category", Field = "category" },
         new() { Label = "Deadline", Field = "deadline" },
         new() { Label = "Status", Field = "status" },
-        new() { Label = "Actions", Field = "actions", Width = "210px" }
+        new() { Label = "Actions", Field = "actions", Width = "280px" }
     ];
 
     protected override async Task OnInitializedAsync()
