@@ -4,7 +4,10 @@
    aria-current="@(IsActive ? "page" : null)"
    aria-label="@Label"
    title="@(IsCollapsed ? Label : null)">
-    @if (!string.IsNullOrWhiteSpace(Icon)) { <span class="pq-sidebar-item__icon">@((MarkupString)Icon)</span> }
+    @if (!string.IsNullOrWhiteSpace(Icon))
+    {
+        <i class="pq-sidebar-item__icon bi bi-@Icon" aria-hidden="true"></i>
+    }
     <span class="pq-sidebar-item__label">@Label</span>
     @if (BadgeCount.HasValue) { <span class="pq-sidebar-item__badge">@BadgeCount</span> }
 </a>

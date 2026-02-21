@@ -4,9 +4,20 @@
     </div>
     <div class="pq-topbar__right">
         @if (ShowSearch) { <PqSearchBar Placeholder="Search..." /> }
-        <button class="pq-topbar__icon-btn" type="button" @onclick="OnThemeToggle" aria-label="Toggle theme">?</button>
-        <button class="pq-topbar__icon-btn" type="button" aria-label="Notifications">?? <span class="pq-topbar__count">@NotificationCount</span></button>
-        <div class="pq-topbar__user"><PqAvatar Name="@UserName" Size="sm" /><div><div>@UserName</div><div class="pq-topbar__role">@UserRole</div></div></div>
+        <button class="pq-topbar__icon-btn" type="button" @onclick="OnThemeToggle" aria-label="Toggle theme">
+            <i class="bi bi-moon-stars"></i>
+        </button>
+        <button class="pq-topbar__icon-btn" type="button" aria-label="Notifications">
+            <i class="bi bi-bell"></i>
+            <span class="pq-topbar__count">@NotificationCount</span>
+        </button>
+        <div class="pq-topbar__user">
+            <PqAvatar Name="@UserName" Size="sm" />
+            <div>
+                <div>@UserName</div>
+                <div class="pq-topbar__role">@UserRole</div>
+            </div>
+        </div>
     </div>
 </div>
 
