@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
@@ -85,6 +86,18 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             _currentUser = _anonymous;
             return new AuthenticationState(_anonymous);
         }
+        catch (CryptographicException)
+        {
+            await ClearLocalAuthStateAsync();
+            _currentUser = _anonymous;
+            return new AuthenticationState(_anonymous);
+        }
+        catch (JsonException)
+        {
+            await ClearLocalAuthStateAsync();
+            _currentUser = _anonymous;
+            return new AuthenticationState(_anonymous);
+        }
     }
 
     /// <summary>
@@ -130,10 +143,12 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         {
             // Continue with local logout even if server logout fails
         }
+        catch (CryptographicException)
+        {
+            // Continue with local logout if refresh token cannot be decrypted.
+        }
 
-        await _localStorage.DeleteAsync(AuthTokenKey);
-        await _localStorage.DeleteAsync(RefreshTokenKey);
-        await _localStorage.DeleteAsync(UserDataKey);
+        await ClearLocalAuthStateAsync();
 
         _currentUser = _anonymous;
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_anonymous)));
@@ -258,6 +273,23 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
         ClaimsIdentity identity = new(claims, "jwt");
         return new ClaimsPrincipal(identity);
+    }
+
+    /// <summary>
+    /// Clears persisted auth data from protected local storage.
+    /// </summary>
+    private async Task ClearLocalAuthStateAsync()
+    {
+        try
+        {
+            await _localStorage.DeleteAsync(AuthTokenKey);
+            await _localStorage.DeleteAsync(RefreshTokenKey);
+            await _localStorage.DeleteAsync(UserDataKey);
+        }
+        catch (InvalidOperationException)
+        {
+            // Ignore when storage is unavailable during prerender.
+        }
     }
 
     #endregion
