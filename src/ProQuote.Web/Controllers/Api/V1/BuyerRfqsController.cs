@@ -307,6 +307,19 @@ public class BuyerRfqsController : ApiControllerBase
             SubmissionDeadline = rfq.SubmissionDeadline,
             Status = rfq.Status,
             PublishedAt = rfq.PublishedAt,
+            Documents = rfq.Documents
+                .OrderBy(d => d.DisplayOrder)
+                .Select(d => new BuyerRfqDocumentDto
+                {
+                    Id = d.Id,
+                    FileName = d.FileName,
+                    ContentType = d.ContentType,
+                    FileSize = d.FileSize,
+                    FilePath = d.FilePath,
+                    Description = d.Description,
+                    UploadedAt = d.UploadedAt,
+                    DisplayOrder = d.DisplayOrder
+                }).ToList(),
             LineItems = rfq.LineItems.OrderBy(li => li.DisplayOrder).Select(li => new BuyerRfqLineItemDto
             {
                 Id = li.Id,
@@ -349,7 +362,24 @@ public class BuyerRfqsController : ApiControllerBase
         public RfqStatus Status { get; set; }
         public DateTime? PublishedAt { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies JSON payload construction.")]
+        public List<BuyerRfqDocumentDto> Documents { get; set; } = [];
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies JSON payload construction.")]
         public List<BuyerRfqLineItemDto> LineItems { get; set; } = [];
+    }
+
+    /// <summary>
+    /// RFQ document payload.
+    /// </summary>
+    public sealed class BuyerRfqDocumentDto
+    {
+        public Guid Id { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public DateTime UploadedAt { get; set; }
+        public int DisplayOrder { get; set; }
     }
 
     /// <summary>

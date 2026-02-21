@@ -5,7 +5,11 @@
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
 @inject IUnitOfWork UnitOfWork
+@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IWebHostEnvironment HostEnvironment
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
@@ -116,6 +120,51 @@ else
             }
         </PqCard>
 
+        <PqCard>
+            <h2 class="pq-card-title">Documents</h2>
+            <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">
+                Attach supporting RFQ files (specs, drawings, requirements). Max file size: 10 MB.
+            </p>
+            <div style="margin-top:var(--pq-space-3);">
+                <InputFile OnChange="HandleFilesSelectedAsync" multiple />
+            </div>
+
+            @if (_pendingUploads.Count > 0)
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <p class="pq-body-sm"><strong>Pending uploads</strong></p>
+                    <ul class="pq-body-sm" style="margin-top:var(--pq-space-2);padding-left:1rem;">
+                        @foreach (PendingUpload pending in _pendingUploads)
+                        {
+                            <li>@pending.File.Name (@FormatFileSize(pending.File.Size))</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (_existingDocuments.Count > 0)
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <p class="pq-body-sm"><strong>Attached documents</strong></p>
+                    <ul class="pq-body-sm" style="margin-top:var(--pq-space-2);padding-left:1rem;">
+                        @foreach (Domain.Entities.RfqDocument doc in _existingDocuments)
+                        {
+                            <li style="display:flex;align-items:center;gap:var(--pq-space-2);flex-wrap:wrap;">
+                                <a href="@doc.FilePath" target="_blank">@doc.FileName</a>
+                                <span>(@FormatFileSize(doc.FileSize))</span>
+                                <PqButton Variant="danger"
+                                          Size="sm"
+                                          OnClick="@(() => RemoveDocumentAsync(doc.Id))"
+                                          Disabled="_isSaving">
+                                    Remove
+                                </PqButton>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        </PqCard>
+
         <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;flex-wrap:wrap;">
             <a href="/buyer/rfqs"><PqButton Variant="ghost">Cancel</PqButton></a>
             <PqButton Variant="secondary" OnClick="SaveDraftAsync" Loading="@(_isSaving && !_publishOnSave)">Save Draft</PqButton>
@@ -133,11 +182,14 @@ else
     private Guid? _buyerId;
     private Guid? _editingRfqId;
     private string? _referenceNumber;
+    private List<PendingUpload> _pendingUploads = [];
+    private List<Domain.Entities.RfqDocument> _existingDocuments = [];
 
     private RfqForm _form = new();
     private List<LineItemForm> _lineItems = [];
     private List<PqSelect.SelectOption> _categoryOptions = [];
     private Dictionary<string, string> _errors = [];
+    private const long MaxUploadBytes = 10 * 1024 * 1024;
 
     private bool IsEditMode => RfqId.HasValue;
 
@@ -206,6 +258,9 @@ else
 
         _editingRfqId = rfq.Id;
         _referenceNumber = rfq.ReferenceNumber;
+        _existingDocuments = rfq.Documents
+            .OrderBy(d => d.DisplayOrder)
+            .ToList();
         _form = new RfqForm
         {
             Title = rfq.Title,
@@ -282,11 +337,13 @@ else
             if (_editingRfqId.HasValue)
             {
                 await UpdateExistingRfqAsync(_editingRfqId.Value, _buyerId.Value);
+                await SavePendingDocumentsAsync(_editingRfqId.Value, _buyerId.Value);
                 ToastService.ShowSuccess(_publishOnSave ? "RFQ published successfully." : "RFQ draft updated.");
             }
             else
             {
-                await CreateRfqAsync(_buyerId.Value);
+                Guid newRfqId = await CreateRfqAsync(_buyerId.Value);
+                await SavePendingDocumentsAsync(newRfqId, _buyerId.Value);
                 ToastService.ShowSuccess(_publishOnSave ? "RFQ created and published." : "RFQ draft created.");
             }
 
@@ -302,7 +359,7 @@ else
         }
     }
 
-    private async Task CreateRfqAsync(Guid buyerId)
+    private async Task<Guid> CreateRfqAsync(Guid buyerId)
     {
         string reference = _referenceNumber ?? await UnitOfWork.Rfqs.GenerateReferenceNumberAsync();
         DateTime submissionDeadline = DateTime.Parse(_form.SubmissionDeadline, null, System.Globalization.DateTimeStyles.AssumeUniversal).ToUniversalTime();
@@ -341,6 +398,7 @@ else
 
         await UnitOfWork.Rfqs.AddAsync(rfq);
         await UnitOfWork.SaveChangesAsync();
+        return rfq.Id;
     }
 
     private async Task UpdateExistingRfqAsync(Guid rfqId, Guid buyerId)
@@ -378,6 +436,116 @@ else
 
         UnitOfWork.Rfqs.Update(rfq);
         await UnitOfWork.SaveChangesAsync();
+
+        _existingDocuments = await DbContext.RfqDocuments
+            .Where(d => d.RfqId == rfqId)
+            .OrderBy(d => d.DisplayOrder)
+            .ToListAsync();
+    }
+
+    private async Task HandleFilesSelectedAsync(InputFileChangeEventArgs args)
+    {
+        IReadOnlyList<IBrowserFile> files = args.GetMultipleFiles();
+        foreach (IBrowserFile file in files)
+        {
+            if (file.Size <= 0)
+            {
+                continue;
+            }
+
+            if (file.Size > MaxUploadBytes)
+            {
+                ToastService.ShowError($"{file.Name} exceeds 10 MB and was skipped.");
+                continue;
+            }
+
+            _pendingUploads.Add(new PendingUpload(file));
+        }
+    }
+
+    private async Task SavePendingDocumentsAsync(Guid rfqId, Guid buyerId)
+    {
+        if (_pendingUploads.Count == 0)
+        {
+            return;
+        }
+
+        string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
+            ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")
+            : HostEnvironment.WebRootPath;
+        string targetDir = Path.Combine(webRoot, "uploads", "rfqs", rfqId.ToString("N"));
+        Directory.CreateDirectory(targetDir);
+
+        int displayOrder = _existingDocuments.Count > 0 ? _existingDocuments.Max(d => d.DisplayOrder) + 1 : 1;
+        List<Domain.Entities.RfqDocument> newDocuments = [];
+
+        foreach (PendingUpload upload in _pendingUploads)
+        {
+            IBrowserFile file = upload.File;
+            string extension = Path.GetExtension(file.Name);
+            string storedFileName = $"{Guid.NewGuid():N}{extension}";
+            string physicalPath = Path.Combine(targetDir, storedFileName);
+
+            await using Stream sourceStream = file.OpenReadStream(MaxUploadBytes);
+            await using FileStream destinationStream = File.Create(physicalPath);
+            await sourceStream.CopyToAsync(destinationStream);
+
+            string relativeFilePath = $"/uploads/rfqs/{rfqId:N}/{storedFileName}";
+            Domain.Entities.RfqDocument document = new()
+            {
+                Id = Guid.NewGuid(),
+                RfqId = rfqId,
+                FileName = Path.GetFileName(file.Name),
+                StoredFileName = storedFileName,
+                ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                FileSize = file.Size,
+                FilePath = relativeFilePath,
+                DisplayOrder = displayOrder++,
+                UploadedById = buyerId,
+                UploadedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            newDocuments.Add(document);
+        }
+
+        if (newDocuments.Count > 0)
+        {
+            await DbContext.RfqDocuments.AddRangeAsync(newDocuments);
+            await DbContext.SaveChangesAsync();
+            _existingDocuments.AddRange(newDocuments);
+        }
+
+        _pendingUploads.Clear();
+    }
+
+    private async Task RemoveDocumentAsync(Guid documentId)
+    {
+        Domain.Entities.RfqDocument? existing = await DbContext.RfqDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+        if (existing == null)
+        {
+            return;
+        }
+
+        DbContext.RfqDocuments.Remove(existing);
+        await DbContext.SaveChangesAsync();
+
+        string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
+            ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")
+            : HostEnvironment.WebRootPath;
+        string relativePath = existing.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+        string physicalPath = Path.Combine(webRoot, relativePath);
+        if (File.Exists(physicalPath))
+        {
+            File.Delete(physicalPath);
+        }
+
+        _existingDocuments = _existingDocuments
+            .Where(d => d.Id != documentId)
+            .OrderBy(d => d.DisplayOrder)
+            .ToList();
+
+        ToastService.ShowSuccess("Document removed.");
     }
 
     private Dictionary<string, string> ValidateForm(bool requireLineItems)
@@ -434,6 +602,20 @@ else
         return 0m;
     }
 
+    private static string FormatFileSize(long bytes)
+    {
+        string[] sizes = ["B", "KB", "MB", "GB"];
+        double size = bytes;
+        int order = 0;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
+    }
+
     private async Task<Guid?> GetCurrentBuyerIdAsync()
     {
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -459,4 +641,6 @@ else
         public string? TechnicalSpecs { get; set; }
         public int DisplayOrder { get; set; }
     }
+
+    private sealed record PendingUpload(IBrowserFile File);
 }
