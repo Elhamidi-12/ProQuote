@@ -91,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICommunicationService, CommunicationService>();
         services.AddScoped<IQuoteSubmissionService, QuoteSubmissionService>();
+        services.AddScoped<IBuyerQuoteManagementService, BuyerQuoteManagementService>();
 
         // Add Database Seeder
         services.AddScoped<AppDbSeeder>();

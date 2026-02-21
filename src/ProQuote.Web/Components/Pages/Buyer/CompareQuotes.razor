@@ -2,10 +2,310 @@
 @rendermode InteractiveServer
 @layout BuyerLayout
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using ProQuote.Application.DTOs.Quotes
+@implements IDisposable
+@inject IBuyerQuoteManagementService BuyerQuoteManagementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject ToastService ToastService
 
 <PageTitle>Compare Quotes - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Compare Quotes</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for quote comparison.</p>
-</PqCard>
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading comparison data...</p>
+    </PqCard>
+}
+else if (_comparison is null)
+{
+    <PqCard>
+        <p class="pq-body-sm">Select an RFQ from <a href="/buyer/quotes">Received Quotes</a> to compare.</p>
+    </PqCard>
+}
+else if (_comparison.Quotes.Count == 0)
+{
+    <PqCard>
+        <p class="pq-body-sm">No comparable quotes available for this RFQ.</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <div class="pq-flex pq-justify-between pq-items-center" style="flex-wrap:wrap;gap:var(--pq-space-2);">
+                <div>
+                    <h2 class="pq-card-title">@_comparison.ReferenceNumber - @_comparison.Title</h2>
+                    <p class="pq-body-sm">Deadline: @_comparison.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</p>
+                </div>
+                <div class="pq-flex pq-gap-2" style="flex-wrap:wrap;">
+                    <PqBadge Variant="@GetRfqStatusBadgeVariant(_comparison.Status)">@_comparison.Status</PqBadge>
+                    <PqBadge Variant="published">Currency: @_comparison.Currency</PqBadge>
+                </div>
+            </div>
+        </PqCard>
+
+        <PqCard>
+            <PqTable Headers="_headers">
+                @foreach (BuyerQuoteComparisonItemDto quote in _comparison.Quotes)
+                {
+                    <tr>
+                        <td>@quote.SupplierName</td>
+                        <td>@quote.TotalAmount.ToString("N2") @_comparison.Currency</td>
+                        <td>@quote.LeadTimeDays days</td>
+                        <td>@quote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                        <td><PqBadge Variant="@GetQuoteBadgeVariant(quote)">@GetQuoteLabel(quote)</PqBadge></td>
+                        <td>
+                            <PqButton Variant="ghost" Size="sm" OnClick="@(() => SelectQuote(quote.QuoteId))">Details</PqButton>
+                            @if (!IsAwardedRfq && !quote.IsAwarded)
+                            {
+                                <PqButton Variant="primary"
+                                          Size="sm"
+                                          OnClick="@(() => AwardQuoteAsync(quote.QuoteId))"
+                                          Loading="@(_isAwarding && _awardingQuoteId == quote.QuoteId)">
+                                    Award
+                                </PqButton>
+                            }
+                        </td>
+                    </tr>
+                }
+            </PqTable>
+        </PqCard>
+
+        @if (SelectedQuote is not null)
+        {
+            <PqCard>
+                <div class="pq-flex pq-justify-between pq-items-center" style="flex-wrap:wrap;gap:var(--pq-space-2);">
+                    <h2 class="pq-card-title">Quote Details - @SelectedQuote.SupplierName</h2>
+                    <PqBadge Variant="@GetQuoteBadgeVariant(SelectedQuote)">@GetQuoteLabel(SelectedQuote)</PqBadge>
+                </div>
+                <div class="pq-flex pq-gap-3" style="flex-wrap:wrap;margin-top:var(--pq-space-2);">
+                    <PqBadge Variant="pending">Lead Time: @SelectedQuote.LeadTimeDays days</PqBadge>
+                    <PqBadge Variant="published">Valid Until: @SelectedQuote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</PqBadge>
+                    <PqBadge Variant="awarded">Total: @SelectedQuote.TotalAmount.ToString("N2") @_comparison.Currency</PqBadge>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(SelectedQuote.PaymentTerms))
+                {
+                    <p class="pq-body-sm" style="margin-top:var(--pq-space-2);"><strong>Payment Terms:</strong> @SelectedQuote.PaymentTerms</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(SelectedQuote.Notes))
+                {
+                    <p class="pq-body-sm" style="margin-top:var(--pq-space-2);"><strong>Supplier Notes:</strong> @SelectedQuote.Notes</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(SelectedQuote.BuyerNotes))
+                {
+                    <p class="pq-body-sm" style="margin-top:var(--pq-space-2);"><strong>Buyer Notes:</strong> @SelectedQuote.BuyerNotes</p>
+                }
+
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqTable Headers="_priceHeaders">
+                        @foreach (BuyerQuoteComparisonLineItemDto lineItem in _comparison.RfqLineItems)
+                        {
+                            BuyerQuoteComparisonPriceDto? price = SelectedQuote.Prices.FirstOrDefault(p => p.LineItemId == lineItem.LineItemId);
+                            <tr>
+                                <td>@lineItem.Name</td>
+                                <td>@lineItem.Quantity.ToString("N2") @lineItem.UnitOfMeasure</td>
+                                <td>@((price?.UnitPrice ?? 0m).ToString("N2")) @_comparison.Currency</td>
+                                <td>@((price?.TotalPrice ?? 0m).ToString("N2")) @_comparison.Currency</td>
+                            </tr>
+                        }
+                    </PqTable>
+                </div>
+            </PqCard>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "rfqId")]
+    public Guid? RfqId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isAwarding;
+    private Guid? _awardingQuoteId;
+    private Guid? _buyerUserId;
+    private Guid? _selectedQuoteId;
+    private BuyerQuoteComparisonDto? _comparison;
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Supplier", Field = "supplier" },
+        new() { Label = "Total", Field = "total" },
+        new() { Label = "Lead Time", Field = "leadTime" },
+        new() { Label = "Valid Until", Field = "validUntil" },
+        new() { Label = "Status", Field = "status" },
+        new() { Label = "Actions", Field = "actions", Width = "220px" }
+    ];
+
+    private readonly List<PqTable.TableColumn> _priceHeaders =
+    [
+        new() { Label = "Line Item", Field = "lineItem" },
+        new() { Label = "Requested Qty", Field = "quantity" },
+        new() { Label = "Unit Price", Field = "unitPrice" },
+        new() { Label = "Line Total", Field = "lineTotal" }
+    ];
+
+    private BuyerQuoteComparisonItemDto? SelectedQuote =>
+        _comparison?.Quotes.FirstOrDefault(q => q.QuoteId == _selectedQuoteId);
+
+    private bool IsAwardedRfq => _comparison?.Status == Domain.Enums.RfqStatus.Awarded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await LoadAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        string current = NavigationManager.ToBaseRelativePath(e.Location);
+        if (current.StartsWith("buyer/quotes/compare", StringComparison.OrdinalIgnoreCase))
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _buyerUserId ??= await GetCurrentUserIdAsync();
+            if (!_buyerUserId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            if (!RfqId.HasValue)
+            {
+                _comparison = null;
+                _selectedQuoteId = null;
+                return;
+            }
+
+            _comparison = await BuyerQuoteManagementService.GetComparisonAsync(_buyerUserId.Value, RfqId.Value);
+            if (_comparison == null)
+            {
+                ToastService.ShowError("RFQ comparison was not found.");
+                return;
+            }
+
+            _selectedQuoteId = _comparison.Quotes
+                .OrderByDescending(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded)
+                .ThenBy(q => q.TotalAmount)
+                .Select(q => (Guid?)q.QuoteId)
+                .FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load quote comparison");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SelectQuote(Guid quoteId)
+    {
+        _selectedQuoteId = quoteId;
+    }
+
+    private async Task AwardQuoteAsync(Guid quoteId)
+    {
+        if (!_buyerUserId.HasValue || _comparison is null)
+        {
+            ToastService.ShowError("Unable to resolve award context.");
+            return;
+        }
+
+        _isAwarding = true;
+        _awardingQuoteId = quoteId;
+        try
+        {
+            AwardQuoteResponse result = await BuyerQuoteManagementService.AwardQuoteAsync(
+                _buyerUserId.Value,
+                _comparison.RfqId,
+                quoteId);
+
+            if (!result.Succeeded)
+            {
+                ToastService.ShowError(result.ErrorMessage ?? "Unable to award quote.");
+                return;
+            }
+
+            ToastService.ShowSuccess("Quote awarded successfully.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to award quote");
+        }
+        finally
+        {
+            _isAwarding = false;
+            _awardingQuoteId = null;
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out Guid parsed) ? parsed : null;
+    }
+
+    private static string GetRfqStatusBadgeVariant(Domain.Enums.RfqStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.RfqStatus.QuotesReceived => "pending",
+            Domain.Enums.RfqStatus.UnderEvaluation => "pending",
+            Domain.Enums.RfqStatus.Awarded => "awarded",
+            _ => "default"
+        };
+    }
+
+    private static string GetQuoteBadgeVariant(BuyerQuoteComparisonItemDto quote)
+    {
+        if (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded)
+        {
+            return "awarded";
+        }
+
+        return quote.Status switch
+        {
+            Domain.Enums.QuoteStatus.Submitted => "published",
+            Domain.Enums.QuoteStatus.UnderReview => "pending",
+            Domain.Enums.QuoteStatus.Rejected => "expired",
+            Domain.Enums.QuoteStatus.Withdrawn => "cancelled",
+            _ => "default"
+        };
+    }
+
+    private static string GetQuoteLabel(BuyerQuoteComparisonItemDto quote)
+    {
+        if (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded)
+        {
+            return "Awarded";
+        }
+
+        return quote.Status.ToString();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

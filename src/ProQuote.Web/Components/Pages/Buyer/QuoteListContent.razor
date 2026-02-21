@@ -1,0 +1,100 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Quotes
+@inject IBuyerQuoteManagementService BuyerQuoteManagementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
+
+<h1 class="pq-section-title">@Title</h1>
+<PqCard>
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm">Loading received quotes...</p>
+    }
+    else if (_rfqs.Count == 0)
+    {
+        <p class="pq-body-sm">No RFQs with received quotes yet.</p>
+    }
+    else
+    {
+        <PqTable Headers="_headers">
+            @foreach (BuyerQuoteRfqListItemDto rfq in _rfqs)
+            {
+                <tr>
+                    <td>@rfq.ReferenceNumber</td>
+                    <td>@rfq.Title</td>
+                    <td>@rfq.QuoteCount</td>
+                    <td><PqBadge Variant="@GetStatusBadgeVariant(rfq.Status)">@rfq.Status</PqBadge></td>
+                    <td>@rfq.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                    <td>
+                        <a href="@($"/buyer/quotes/compare?rfqId={rfq.RfqId}")">
+                            <PqButton Variant="secondary" Size="sm">
+                                @(rfq.AwardedQuoteId.HasValue ? "View Award" : "Compare")
+                            </PqButton>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </PqTable>
+    }
+</PqCard>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Received Quotes";
+
+    private bool _isLoading = true;
+    private List<BuyerQuoteRfqListItemDto> _rfqs = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Reference", Field = "reference" },
+        new() { Label = "RFQ", Field = "rfq" },
+        new() { Label = "Quotes", Field = "quotes" },
+        new() { Label = "Status", Field = "status" },
+        new() { Label = "Deadline", Field = "deadline" },
+        new() { Label = "Actions", Field = "actions", Width = "130px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userId, out Guid buyerUserId))
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            IReadOnlyList<BuyerQuoteRfqListItemDto> items = await BuyerQuoteManagementService.GetBuyerQuoteRfqsAsync(buyerUserId);
+            _rfqs = items.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load received quotes");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetStatusBadgeVariant(Domain.Enums.RfqStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.RfqStatus.QuotesReceived => "pending",
+            Domain.Enums.RfqStatus.UnderEvaluation => "pending",
+            Domain.Enums.RfqStatus.Awarded => "awarded",
+            Domain.Enums.RfqStatus.Published => "published",
+            _ => "default"
+        };
+    }
+}

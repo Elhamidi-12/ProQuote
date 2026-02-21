@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using ProQuote.Application.DTOs.Quotes;
 using ProQuote.Application.Interfaces;
 using ProQuote.Domain.Entities;
 using ProQuote.Domain.Enums;
@@ -19,14 +20,19 @@ namespace ProQuote.Web.Controllers.Api.V1;
 public class BuyerRfqsController : ApiControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBuyerQuoteManagementService _buyerQuoteManagementService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BuyerRfqsController"/> class.
     /// </summary>
     /// <param name="unitOfWork">Unit of work.</param>
-    public BuyerRfqsController(IUnitOfWork unitOfWork)
+    /// <param name="buyerQuoteManagementService">Buyer quote management service.</param>
+    public BuyerRfqsController(
+        IUnitOfWork unitOfWork,
+        IBuyerQuoteManagementService buyerQuoteManagementService)
     {
         _unitOfWork = unitOfWork;
+        _buyerQuoteManagementService = buyerQuoteManagementService;
     }
 
     /// <summary>
@@ -203,6 +209,47 @@ public class BuyerRfqsController : ApiControllerBase
         await _unitOfWork.SaveChangesAsync();
 
         return Ok(ToDetails(rfq));
+    }
+
+    /// <summary>
+    /// Gets quote comparison payload for buyer RFQ.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <returns>Comparison payload.</returns>
+    [HttpGet("{id:guid}/quotes/compare")]
+    public async Task<IActionResult> GetQuoteComparison(Guid id)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        BuyerQuoteComparisonDto? comparison = await _buyerQuoteManagementService.GetComparisonAsync(CurrentUserId.Value, id);
+        return comparison == null ? NotFound() : Ok(comparison);
+    }
+
+    /// <summary>
+    /// Awards selected quote for buyer RFQ.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <param name="quoteId">Quote identifier.</param>
+    /// <param name="request">Award request.</param>
+    /// <returns>Award result.</returns>
+    [HttpPost("{id:guid}/quotes/{quoteId:guid}/award")]
+    public async Task<IActionResult> AwardQuote(Guid id, Guid quoteId, [FromBody] AwardQuoteRequest? request = null)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        AwardQuoteResponse result = await _buyerQuoteManagementService.AwardQuoteAsync(
+            CurrentUserId.Value,
+            id,
+            quoteId,
+            request?.BuyerNotes);
+
+        return result.Succeeded ? Ok(result) : BadRequest(result);
     }
 
     private static bool TryValidateRequest(SaveBuyerRfqRequest request, out string error)
