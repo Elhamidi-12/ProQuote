@@ -2,10 +2,280 @@
 @rendermode InteractiveServer
 @layout SupplierLayout
 @attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Communication
+@inject ICommunicationService CommunicationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
 
 <PageTitle>Supplier Messages - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Messages</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for supplier messaging.</p>
-</PqCard>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading messages...</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <h2 class="pq-card-title">Compose Message</h2>
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                <PqSelect Label="RFQ"
+                          Value="@_selectedRfqIdString"
+                          ValueChanged="OnRfqChangedAsync"
+                          Options="_rfqOptions"
+                          Placeholder="Select an invited RFQ" />
+                <PqTextarea Label="Message"
+                            Value="@_messageText"
+                            ValueChanged="@(v => _messageText = v ?? string.Empty)"
+                            Placeholder="Send a clarification to the buyer..." />
+                <div style="display:flex;justify-content:flex-end;">
+                    <PqButton Variant="primary" OnClick="SendMessageAsync" Loading="_isSending">Send Message</PqButton>
+                </div>
+            </div>
+        </PqCard>
+
+        <PqCard>
+            <div class="pq-flex pq-justify-between pq-items-center">
+                <h2 class="pq-card-title">Thread</h2>
+                <PqBadge Variant="info">@_messages.Count message(s)</PqBadge>
+            </div>
+            @if (_messages.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No messages yet for the selected RFQ.</p>
+            }
+            else
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqTable Headers="_messageHeaders">
+                        @foreach (MessageThreadItemDto item in _messages)
+                        {
+                            <tr>
+                                <td>@item.RfqReferenceNumber</td>
+                                <td>@item.SenderName</td>
+                                <td><PqBadge Variant="@(item.IsFromBuyer ? "published" : "awarded")">@((item.IsFromBuyer ? "Buyer" : "Supplier"))</PqBadge></td>
+                                <td>@item.Message</td>
+                                <td>@item.SentAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </PqTable>
+                </div>
+            }
+        </PqCard>
+
+        <PqCard>
+            <div class="pq-flex pq-justify-between pq-items-center">
+                <h2 class="pq-card-title">Notifications</h2>
+                <div style="display:flex;gap:var(--pq-space-2);align-items:center;">
+                    <PqBadge Variant="pending">@_unreadNotificationCount unread</PqBadge>
+                    <PqButton Variant="ghost" Size="sm" OnClick="MarkAllNotificationsAsReadAsync">Mark All Read</PqButton>
+                </div>
+            </div>
+            @if (_notifications.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No notifications.</p>
+            }
+            else
+            {
+                <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+                    @foreach (NotificationItemDto notification in _notifications)
+                    {
+                        <li style="display:flex;justify-content:space-between;gap:var(--pq-space-2);align-items:flex-start;">
+                            <div>
+                                <div class="pq-body-sm"><strong>@notification.Title</strong></div>
+                                <div class="pq-body-sm">@notification.Message</div>
+                                <div class="pq-caption">@notification.SentAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</div>
+                            </div>
+                            @if (!notification.IsRead)
+                            {
+                                <PqButton Variant="secondary" Size="sm" OnClick="@(() => MarkNotificationAsReadAsync(notification.Id))">Mark Read</PqButton>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </PqCard>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSending;
+    private Guid? _currentUserId;
+    private Guid? _selectedRfqId;
+    private string _selectedRfqIdString = string.Empty;
+    private string _messageText = string.Empty;
+    private int _unreadNotificationCount;
+
+    private List<MessageThreadItemDto> _messages = [];
+    private List<NotificationItemDto> _notifications = [];
+    private List<PqSelect.SelectOption> _rfqOptions = [];
+
+    private readonly List<PqTable.TableColumn> _messageHeaders =
+    [
+        new() { Label = "RFQ", Field = "rfq" },
+        new() { Label = "Sender", Field = "sender" },
+        new() { Label = "Role", Field = "role" },
+        new() { Label = "Message", Field = "message" },
+        new() { Label = "Sent", Field = "sent" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _currentUserId = await GetCurrentUserIdAsync();
+            if (!_currentUserId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            IReadOnlyList<MessagingRfqOptionDto> rfqs = await CommunicationService.GetSupplierRfqOptionsAsync(_currentUserId.Value);
+            _rfqOptions = rfqs
+                .Select(r => new PqSelect.SelectOption
+                {
+                    Value = r.RfqId.ToString(),
+                    Label = $"{r.ReferenceNumber} - {r.Title}"
+                })
+                .ToList();
+
+            if (rfqs.Count > 0)
+            {
+                _selectedRfqId = rfqs[0].RfqId;
+                _selectedRfqIdString = rfqs[0].RfqId.ToString();
+            }
+
+            await RefreshMessagesAsync();
+            await RefreshNotificationsAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load messages");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnRfqChangedAsync(string? value)
+    {
+        _selectedRfqIdString = value ?? string.Empty;
+        _selectedRfqId = Guid.TryParse(value, out Guid parsed) ? parsed : null;
+        await RefreshMessagesAsync();
+    }
+
+    private async Task SendMessageAsync()
+    {
+        if (!_currentUserId.HasValue || !_selectedRfqId.HasValue)
+        {
+            ToastService.ShowError("Select an RFQ first.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_messageText))
+        {
+            ToastService.ShowError("Message cannot be empty.");
+            return;
+        }
+
+        _isSending = true;
+        try
+        {
+            bool sent = await CommunicationService.SendSupplierMessageAsync(_currentUserId.Value, _selectedRfqId.Value, _messageText);
+            if (!sent)
+            {
+                ToastService.ShowError("Unable to send message.");
+                return;
+            }
+
+            _messageText = string.Empty;
+            await RefreshMessagesAsync();
+            ToastService.ShowSuccess("Message sent.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _isSending = false;
+        }
+    }
+
+    private async Task MarkNotificationAsReadAsync(Guid notificationId)
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        bool marked = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notificationId);
+        if (marked)
+        {
+            await RefreshNotificationsAsync();
+        }
+    }
+
+    private async Task MarkAllNotificationsAsReadAsync()
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        int updated = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
+        if (updated > 0)
+        {
+            ToastService.ShowSuccess("Notifications marked as read.");
+            await RefreshNotificationsAsync();
+        }
+    }
+
+    private async Task RefreshMessagesAsync()
+    {
+        if (!_currentUserId.HasValue)
+        {
+            _messages = [];
+            return;
+        }
+
+        IReadOnlyList<MessageThreadItemDto> messages =
+            await CommunicationService.GetSupplierMessagesAsync(_currentUserId.Value, _selectedRfqId);
+        _messages = messages.ToList();
+    }
+
+    private async Task RefreshNotificationsAsync()
+    {
+        if (!_currentUserId.HasValue)
+        {
+            _notifications = [];
+            _unreadNotificationCount = 0;
+            return;
+        }
+
+        IReadOnlyList<NotificationItemDto> notifications =
+            await CommunicationService.GetNotificationsAsync(_currentUserId.Value, take: 10);
+        _notifications = notifications.ToList();
+        _unreadNotificationCount = await CommunicationService.GetUnreadNotificationCountAsync(_currentUserId.Value);
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+}

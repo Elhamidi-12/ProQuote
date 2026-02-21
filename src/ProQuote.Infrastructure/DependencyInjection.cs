@@ -88,6 +88,7 @@ public static class DependencyInjection
 
         // Add Services
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICommunicationService, CommunicationService>();
 
         // Add Database Seeder
         services.AddScoped<AppDbSeeder>();

@@ -9,6 +9,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject CustomAuthStateProvider AuthStateProvider
+@inject ICommunicationService CommunicationService
 
 <div class="pq-shell">
     <PqSidebar AppName="ProQuote Buyer"
@@ -26,7 +27,7 @@
         </AppTitle>
     </PqSidebar>
     <main class="pq-shell__main @(_isSidebarCollapsed ? "pq-shell__main--collapsed" : string.Empty)">
-        <PqTopBar Title="Buyer Portal" NotificationCount="3" OnThemeToggle="ThemeService.ToggleThemeAsync" />
+        <PqTopBar Title="Buyer Portal" NotificationCount="@_notificationCount" OnThemeToggle="ThemeService.ToggleThemeAsync" />
         <section class="pq-shell__content">@Body</section>
     </main>
     <PqToastContainer />
@@ -36,6 +37,7 @@
     private bool _isSidebarCollapsed;
     private string _userName = "Buyer User";
     private string _userRole = "Buyer";
+    private int _notificationCount;
 
     private Task OnSidebarCollapsedChanged(bool isCollapsed)
     {
@@ -55,6 +57,7 @@
         if (authState.User.Identity?.IsAuthenticated == true)
         {
             UpdateUserFromClaims(authState.User);
+            await LoadNotificationCountAsync(authState.User);
         }
     }
 
@@ -91,6 +94,18 @@
         return Task.CompletedTask;
     }
 
+    private async Task LoadNotificationCountAsync(ClaimsPrincipal user)
+    {
+        string? userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out Guid userId))
+        {
+            _notificationCount = 0;
+            return;
+        }
+
+        _notificationCount = await CommunicationService.GetUnreadNotificationCountAsync(userId);
+    }
+
     private string GetProfileRoute()
     {
         return _userRole switch
@@ -120,6 +135,7 @@
         new() { Label = "My RFQs", Href = "/buyer/rfqs", Icon = "list-task" },
         new() { Label = "Quotes", Href = "/buyer/quotes", Icon = "receipt" },
         new() { Label = "Suppliers", Href = "/buyer/suppliers", Icon = "building" },
+        new() { Label = "Messages", Href = "/buyer/messages", Icon = "chat-dots" },
         new() { Label = "Reports", Href = "/buyer/reports", Icon = "graph-up" }
     ];
 }
