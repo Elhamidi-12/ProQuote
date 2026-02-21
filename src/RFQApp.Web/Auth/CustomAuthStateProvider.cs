@@ -17,7 +17,8 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
     private readonly ProtectedLocalStorage _localStorage;
     private readonly IServiceProvider _serviceProvider;
-    private ClaimsPrincipal _anonymous = new(new ClaimsIdentity());
+    private readonly ClaimsPrincipal _anonymous = new(new ClaimsIdentity());
+    private ClaimsPrincipal _currentUser;
 
     #endregion
 
@@ -42,6 +43,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     {
         _localStorage = localStorage;
         _serviceProvider = serviceProvider;
+        _currentUser = _anonymous;
     }
 
     #endregion
@@ -51,6 +53,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     /// <inheritdoc />
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
+        if (_currentUser.Identity?.IsAuthenticated == true)
+        {
+            return new AuthenticationState(_currentUser);
+        }
+
         try
         {
             ProtectedBrowserStorageResult<string> tokenResult = await _localStorage.GetAsync<string>(AuthTokenKey);
@@ -58,14 +65,23 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
             if (!tokenResult.Success || string.IsNullOrEmpty(tokenResult.Value) || !userResult.Success || userResult.Value == null)
             {
+                _currentUser = _anonymous;
                 return new AuthenticationState(_anonymous);
             }
 
             ClaimsPrincipal user = CreateClaimsPrincipal(userResult.Value);
+            _currentUser = user;
             return new AuthenticationState(user);
         }
         catch
         {
+            // During prerender, browser storage isn't available. Preserve in-circuit auth state if present.
+            if (_currentUser.Identity?.IsAuthenticated == true)
+            {
+                return new AuthenticationState(_currentUser);
+            }
+
+            _currentUser = _anonymous;
             return new AuthenticationState(_anonymous);
         }
     }
@@ -86,6 +102,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         await _localStorage.SetAsync(UserDataKey, response.User);
 
         ClaimsPrincipal user = CreateClaimsPrincipal(response.User);
+        _currentUser = user;
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
 
@@ -115,6 +132,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         await _localStorage.DeleteAsync(RefreshTokenKey);
         await _localStorage.DeleteAsync(UserDataKey);
 
+        _currentUser = _anonymous;
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_anonymous)));
     }
 
