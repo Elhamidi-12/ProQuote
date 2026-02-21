@@ -14,6 +14,8 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<Supplier> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("Suppliers");

@@ -14,6 +14,8 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<Notification> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("Notifications");

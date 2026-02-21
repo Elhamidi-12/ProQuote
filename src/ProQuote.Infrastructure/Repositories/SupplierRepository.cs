@@ -38,8 +38,10 @@ public class SupplierRepository : Repository<Supplier>, ISupplierRepository
     /// <inheritdoc />
     public async Task<Supplier?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(email);
+
         return await DbSet
-            .FirstOrDefaultAsync(s => s.Email.ToLower() == email.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(s => s.Email == email, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -83,15 +85,17 @@ public class SupplierRepository : Repository<Supplier>, ISupplierRepository
         string searchTerm,
         CancellationToken cancellationToken = default)
     {
-        string lowerSearchTerm = searchTerm.ToLower();
+        ArgumentNullException.ThrowIfNull(searchTerm);
+
+        string pattern = $"%{searchTerm}%";
 
         return await DbSet
             .Include(s => s.Categories)
                 .ThenInclude(sc => sc.Category)
             .Where(s => s.Status == SupplierStatus.Approved &&
-                        (s.CompanyName.ToLower().Contains(lowerSearchTerm) ||
-                         s.ContactName.ToLower().Contains(lowerSearchTerm) ||
-                         s.Email.ToLower().Contains(lowerSearchTerm)))
+                        (EF.Functions.Like(s.CompanyName, pattern) ||
+                         EF.Functions.Like(s.ContactName, pattern) ||
+                         EF.Functions.Like(s.Email, pattern)))
             .OrderBy(s => s.CompanyName)
             .ToListAsync(cancellationToken);
     }

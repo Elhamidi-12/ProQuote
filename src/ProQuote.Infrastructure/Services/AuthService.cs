@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -47,6 +48,11 @@ public class AuthService : IAuthService
         AppDbContext context,
         IOptions<JwtSettings> jwtSettings)
     {
+        ArgumentNullException.ThrowIfNull(userManager);
+        ArgumentNullException.ThrowIfNull(signInManager);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(jwtSettings);
+
         _userManager = userManager;
         _signInManager = signInManager;
         _context = context;
@@ -60,6 +66,8 @@ public class AuthService : IAuthService
     /// <inheritdoc />
     public async Task<AuthResponse> LoginAsync(LoginRequest request, string? ipAddress = null)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         ApplicationUserIdentity? user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user == null)
@@ -72,7 +80,7 @@ public class AuthService : IAuthService
             return AuthResponse.Failure("Your account has been deactivated. Please contact support.");
         }
 
-        Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.CheckPasswordSignInAsync(
+        SignInResult result = await _signInManager.CheckPasswordSignInAsync(
             user, request.Password, lockoutOnFailure: true);
 
         if (result.IsLockedOut)
@@ -121,6 +129,8 @@ public class AuthService : IAuthService
     /// <inheritdoc />
     public async Task<AuthResponse> RegisterBuyerAsync(RegisterRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         ApplicationUserIdentity? existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
         {
@@ -157,6 +167,8 @@ public class AuthService : IAuthService
     /// <inheritdoc />
     public async Task<AuthResponse> RegisterSupplierAsync(SupplierRegisterRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         ApplicationUserIdentity? existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
         {
@@ -164,8 +176,7 @@ public class AuthService : IAuthService
         }
 
         // Check if company name already exists
-        bool companyExists = await _context.Suppliers.AnyAsync(s =>
-            s.CompanyName.ToLower() == request.CompanyName.ToLower());
+        bool companyExists = await _context.Suppliers.AnyAsync(s => s.CompanyName == request.CompanyName);
 
         if (companyExists)
         {
@@ -255,6 +266,8 @@ public class AuthService : IAuthService
     /// <inheritdoc />
     public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request, string? ipAddress = null)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         ClaimsPrincipal? principal = GetPrincipalFromExpiredToken(request.AccessToken);
         if (principal == null)
         {
@@ -444,14 +457,14 @@ public class AuthService : IAuthService
             ClaimsPrincipal principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
 
             if (securityToken is not JwtSecurityToken jwtSecurityToken ||
-                !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
 
             return principal;
         }
-        catch
+        catch (Exception ex) when (ex is SecurityTokenException or ArgumentException)
         {
             return null;
         }
@@ -502,7 +515,7 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             PhoneNumber = user.PhoneNumber,
             ProfilePictureUrl = user.ProfilePictureUrl,
-            Roles = roles.ToList(),
+            Roles = new Collection<string>(roles.ToList()),
             IsActive = user.IsActive
         };
 

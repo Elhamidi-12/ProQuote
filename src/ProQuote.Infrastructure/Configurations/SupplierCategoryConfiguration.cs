@@ -13,6 +13,8 @@ public class SupplierCategoryConfiguration : IEntityTypeConfiguration<SupplierCa
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<SupplierCategory> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("SupplierCategories");

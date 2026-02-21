@@ -42,6 +42,8 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class
     /// <param name="context">The database context.</param>
     public Repository(AppDbContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
+
         _context = context;
         _dbSet = context.Set<TEntity>();
     }

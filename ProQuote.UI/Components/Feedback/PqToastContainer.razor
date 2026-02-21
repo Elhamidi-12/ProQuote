@@ -9,7 +9,7 @@
 </div>
 
 @code {
-    private readonly List<ToastService.ToastMessage> _toasts = [];
+    private readonly List<ToastMessage> _toasts = [];
 
     protected override void OnInitialized()
     {
@@ -17,7 +17,7 @@
         ToastService.OnToastRemoved += Remove;
     }
 
-    private void Add(ToastService.ToastMessage toast)
+    private void Add(ToastMessage toast)
     {
         _toasts.Add(toast);
         InvokeAsync(StateHasChanged);

@@ -13,6 +13,8 @@ public class RfqInvitationConfiguration : IEntityTypeConfiguration<RfqInvitation
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<RfqInvitation> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("RfqInvitations");

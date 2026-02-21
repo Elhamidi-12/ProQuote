@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace ProQuote.Application.DTOs.Auth;
 
 /// <summary>
@@ -38,12 +40,13 @@ public class UserDto
     /// <summary>
     /// Gets or sets the profile picture URL.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "Stored as relative/absolute path for API compatibility.")]
     public string? ProfilePictureUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the user's roles.
     /// </summary>
-    public List<string> Roles { get; set; } = [];
+    public Collection<string> Roles { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the supplier identifier if the user is a supplier.

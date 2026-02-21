@@ -13,6 +13,8 @@ public class LineItemConfiguration : IEntityTypeConfiguration<LineItem>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<LineItem> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("LineItems");

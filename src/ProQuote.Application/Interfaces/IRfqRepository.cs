@@ -16,7 +16,7 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="referenceNumber">The RFQ reference number.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The RFQ if found; otherwise, null.</returns>
-    Task<Rfq?> GetByReferenceNumberAsync(string referenceNumber, CancellationToken cancellationToken = default);
+    public Task<Rfq?> GetByReferenceNumberAsync(string referenceNumber, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets an RFQ with all its related data (line items, invitations, quotes, etc.).
@@ -24,7 +24,7 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="id">The RFQ identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The RFQ with all related data if found; otherwise, null.</returns>
-    Task<Rfq?> GetWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
+    public Task<Rfq?> GetWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all RFQs created by a specific buyer.
@@ -32,7 +32,7 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="buyerId">The buyer identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of RFQs created by the buyer.</returns>
-    Task<IReadOnlyList<Rfq>> GetByBuyerIdAsync(Guid buyerId, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Rfq>> GetByBuyerIdAsync(Guid buyerId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all RFQs in a specific status.
@@ -40,7 +40,7 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="status">The RFQ status.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of RFQs in the specified status.</returns>
-    Task<IReadOnlyList<Rfq>> GetByStatusAsync(RfqStatus status, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Rfq>> GetByStatusAsync(RfqStatus status, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all RFQs that a supplier has been invited to.
@@ -48,7 +48,7 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="supplierId">The supplier identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of RFQs the supplier has been invited to.</returns>
-    Task<IReadOnlyList<Rfq>> GetBySupplierInvitationAsync(Guid supplierId, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Rfq>> GetBySupplierInvitationAsync(Guid supplierId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all RFQs with submission deadlines within a specified period.
@@ -57,14 +57,14 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="endDate">The end date.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of RFQs within the deadline period.</returns>
-    Task<IReadOnlyList<Rfq>> GetByDeadlinePeriodAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Rfq>> GetByDeadlinePeriodAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets RFQs that have expired (deadline passed with no quotes).
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of expired RFQs.</returns>
-    Task<IReadOnlyList<Rfq>> GetExpiredRfqsAsync(CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Rfq>> GetExpiredRfqsAsync(CancellationToken cancellationToken = default);
 
     #endregion
 
@@ -75,7 +75,7 @@ public interface IRfqRepository : IRepository<Rfq>
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The next reference number in format RFQ-YYYY-NNNNN.</returns>
-    Task<string> GenerateReferenceNumberAsync(CancellationToken cancellationToken = default);
+    public Task<string> GenerateReferenceNumberAsync(CancellationToken cancellationToken = default);
 
     #endregion
 }

@@ -13,6 +13,8 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<Category> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("Categories");

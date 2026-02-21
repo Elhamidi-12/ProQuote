@@ -59,7 +59,7 @@
             }
             else
             {
-                _errors = response.Errors.Count > 0 ? response.Errors : [response.ErrorMessage ?? "Registration failed."];
+                _errors = response.Errors.Count > 0 ? response.Errors.ToList() : [response.ErrorMessage ?? "Registration failed."];
             }
         }
         catch (Exception ex)

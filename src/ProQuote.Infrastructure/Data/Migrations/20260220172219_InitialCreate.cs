@@ -1,7 +1,7 @@
-using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
+#pragma warning disable CA1861 // Generated migration code
 
 namespace ProQuote.Infrastructure.Data.Migrations
 {
@@ -11,6 +11,8 @@ namespace ProQuote.Infrastructure.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
+
             migrationBuilder.CreateTable(
                 name: "Categories",
                 columns: table => new
@@ -919,6 +921,8 @@ namespace ProQuote.Infrastructure.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            ArgumentNullException.ThrowIfNull(migrationBuilder);
+
             migrationBuilder.DropTable(
                 name: "AuditLogs");
 
@@ -984,3 +988,4 @@ namespace ProQuote.Infrastructure.Data.Migrations
         }
     }
 }
+#pragma warning restore CA1861 // Generated migration code

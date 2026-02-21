@@ -14,22 +14,22 @@ public interface IUnitOfWork : IDisposable
     /// <summary>
     /// Gets the RFQ repository.
     /// </summary>
-    IRfqRepository Rfqs { get; }
+    public IRfqRepository Rfqs { get; }
 
     /// <summary>
     /// Gets the Quote repository.
     /// </summary>
-    IQuoteRepository Quotes { get; }
+    public IQuoteRepository Quotes { get; }
 
     /// <summary>
     /// Gets the Supplier repository.
     /// </summary>
-    ISupplierRepository Suppliers { get; }
+    public ISupplierRepository Suppliers { get; }
 
     /// <summary>
     /// Gets the Category repository.
     /// </summary>
-    ICategoryRepository Categories { get; }
+    public ICategoryRepository Categories { get; }
 
     #endregion
 
@@ -40,28 +40,28 @@ public interface IUnitOfWork : IDisposable
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The number of entities written to the database.</returns>
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Begins a new database transaction.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+    public Task BeginTransactionAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Commits the current transaction.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+    public Task CommitTransactionAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Rolls back the current transaction.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+    public Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 
     #endregion
 }

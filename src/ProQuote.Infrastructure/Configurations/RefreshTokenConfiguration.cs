@@ -14,6 +14,8 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<RefreshToken> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("RefreshTokens");

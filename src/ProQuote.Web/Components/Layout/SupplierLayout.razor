@@ -26,7 +26,7 @@
         </AppTitle>
     </PqSidebar>
     <main class="pq-shell__main @(_isSidebarCollapsed ? "pq-shell__main--collapsed" : string.Empty)">
-        <PqTopBar Title="Supplier Portal" NotificationCount="5" OnThemeToggle="ThemeService.ToggleTheme" />
+        <PqTopBar Title="Supplier Portal" NotificationCount="5" OnThemeToggle="ThemeService.ToggleThemeAsync" />
         <section class="pq-shell__content">@Body</section>
     </main>
     <PqToastContainer />

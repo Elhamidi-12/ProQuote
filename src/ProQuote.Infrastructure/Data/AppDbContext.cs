@@ -106,6 +106,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUserIdentity, Applicati
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         base.OnModelCreating(builder);
 
         // Apply all configurations from the current assembly
@@ -167,7 +169,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUserIdentity, Applicati
     /// </summary>
     private void UpdateTimestamps()
     {
-        System.Collections.Generic.IEnumerable<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<BaseEntity>> entries = ChangeTracker
+        IEnumerable<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<BaseEntity>> entries = ChangeTracker
             .Entries<BaseEntity>()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 

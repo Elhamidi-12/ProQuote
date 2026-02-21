@@ -16,7 +16,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="id">The quote identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The quote with all related data if found; otherwise, null.</returns>
-    Task<Quote?> GetWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
+    public Task<Quote?> GetWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all quotes for a specific RFQ.
@@ -24,7 +24,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="rfqId">The RFQ identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of quotes for the RFQ.</returns>
-    Task<IReadOnlyList<Quote>> GetByRfqIdAsync(Guid rfqId, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Quote>> GetByRfqIdAsync(Guid rfqId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all quotes submitted by a specific supplier.
@@ -32,7 +32,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="supplierId">The supplier identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of quotes submitted by the supplier.</returns>
-    Task<IReadOnlyList<Quote>> GetBySupplierIdAsync(Guid supplierId, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Quote>> GetBySupplierIdAsync(Guid supplierId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the quote submitted by a specific supplier for a specific RFQ.
@@ -41,7 +41,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="supplierId">The supplier identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The quote if found; otherwise, null.</returns>
-    Task<Quote?> GetByRfqAndSupplierAsync(Guid rfqId, Guid supplierId, CancellationToken cancellationToken = default);
+    public Task<Quote?> GetByRfqAndSupplierAsync(Guid rfqId, Guid supplierId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all quotes in a specific status.
@@ -49,7 +49,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="status">The quote status.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of quotes in the specified status.</returns>
-    Task<IReadOnlyList<Quote>> GetByStatusAsync(QuoteStatus status, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Quote>> GetByStatusAsync(QuoteStatus status, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the awarded quote for a specific RFQ.
@@ -57,7 +57,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="rfqId">The RFQ identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The awarded quote if found; otherwise, null.</returns>
-    Task<Quote?> GetAwardedQuoteForRfqAsync(Guid rfqId, CancellationToken cancellationToken = default);
+    public Task<Quote?> GetAwardedQuoteForRfqAsync(Guid rfqId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all quotes for an RFQ with line items for comparison.
@@ -65,7 +65,7 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <param name="rfqId">The RFQ identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of quotes with line items.</returns>
-    Task<IReadOnlyList<Quote>> GetQuotesForComparisonAsync(Guid rfqId, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Quote>> GetQuotesForComparisonAsync(Guid rfqId, CancellationToken cancellationToken = default);
 
     #endregion
 }

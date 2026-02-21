@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace ProQuote.Application.DTOs.Auth;
 
 /// <summary>
@@ -38,7 +40,7 @@ public class AuthResponse
     /// <summary>
     /// Gets or sets the list of validation errors.
     /// </summary>
-    public List<string> Errors { get; set; } = [];
+    public Collection<string> Errors { get; set; } = [];
 
     #region Factory Methods
 
@@ -86,7 +88,7 @@ public class AuthResponse
         return new AuthResponse
         {
             Succeeded = false,
-            Errors = errors.ToList(),
+            Errors = new Collection<string>(errors.ToList()),
             ErrorMessage = errors.FirstOrDefault()
         };
     }

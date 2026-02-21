@@ -14,6 +14,8 @@ public class RfqDocumentConfiguration : IEntityTypeConfiguration<RfqDocument>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<RfqDocument> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("RfqDocuments");

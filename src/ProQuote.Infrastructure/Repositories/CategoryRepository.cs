@@ -85,7 +85,7 @@ public class CategoryRepository : Repository<Category>, ICategoryRepository
         Guid? excludeId = null,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<Category> query = DbSet.Where(c => c.Name.ToLower() == name.ToLower() && c.ParentCategoryId == parentId);
+        IQueryable<Category> query = DbSet.Where(c => c.Name == name && c.ParentCategoryId == parentId);
 
         if (excludeId.HasValue)
         {

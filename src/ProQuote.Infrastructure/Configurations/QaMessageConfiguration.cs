@@ -14,6 +14,8 @@ public class QaMessageConfiguration : IEntityTypeConfiguration<QaMessage>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<QaMessage> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("QaMessages");

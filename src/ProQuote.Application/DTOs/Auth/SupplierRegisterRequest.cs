@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace ProQuote.Application.DTOs.Auth;
@@ -55,5 +56,5 @@ public class SupplierRegisterRequest : RegisterRequest
     /// <summary>
     /// Gets or sets the selected category IDs.
     /// </summary>
-    public List<Guid> CategoryIds { get; set; } = [];
+    public Collection<Guid> CategoryIds { get; set; } = [];
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Authorization;
+
 using ProQuote.Infrastructure;
 using ProQuote.Infrastructure.Data;
 using ProQuote.UI.Services;

@@ -13,6 +13,8 @@ public class QuoteDocumentConfiguration : IEntityTypeConfiguration<QuoteDocument
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<QuoteDocument> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("QuoteDocuments");

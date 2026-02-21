@@ -1,5 +1,3 @@
-using System;
-
 namespace ProQuote.UI.Components;
 
 internal static class IconHelper

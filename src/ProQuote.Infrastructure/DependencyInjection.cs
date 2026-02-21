@@ -27,6 +27,9 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
         // Add DbContext
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(

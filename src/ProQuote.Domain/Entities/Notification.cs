@@ -34,6 +34,7 @@ public class Notification : BaseEntity
     /// <summary>
     /// Gets or sets the URL to navigate to when the notification is clicked.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "Stored as database string and consumed directly by UI routing.")]
     public string? ActionUrl { get; set; }
 
     /// <summary>

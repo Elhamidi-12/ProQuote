@@ -14,7 +14,7 @@ public interface ICategoryRepository : IRepository<Category>
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of top-level categories.</returns>
-    Task<IReadOnlyList<Category>> GetTopLevelCategoriesAsync(CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Category>> GetTopLevelCategoriesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all child categories of a parent category.
@@ -22,7 +22,7 @@ public interface ICategoryRepository : IRepository<Category>
     /// <param name="parentId">The parent category identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of child categories.</returns>
-    Task<IReadOnlyList<Category>> GetChildCategoriesAsync(Guid parentId, CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Category>> GetChildCategoriesAsync(Guid parentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets a category with all its child categories.
@@ -30,21 +30,21 @@ public interface ICategoryRepository : IRepository<Category>
     /// <param name="id">The category identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The category with children if found; otherwise, null.</returns>
-    Task<Category?> GetWithChildrenAsync(Guid id, CancellationToken cancellationToken = default);
+    public Task<Category?> GetWithChildrenAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all active categories.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of active categories.</returns>
-    Task<IReadOnlyList<Category>> GetActiveCategoriesAsync(CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Category>> GetActiveCategoriesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the full category hierarchy as a flat list with depth information.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of all categories with hierarchy information.</returns>
-    Task<IReadOnlyList<Category>> GetCategoryHierarchyAsync(CancellationToken cancellationToken = default);
+    public Task<IReadOnlyList<Category>> GetCategoryHierarchyAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if a category name already exists at the same level.
@@ -54,7 +54,7 @@ public interface ICategoryRepository : IRepository<Category>
     /// <param name="excludeId">The category identifier to exclude from the check.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if the name exists; otherwise, false.</returns>
-    Task<bool> NameExistsAsync(string name, Guid? parentId, Guid? excludeId = null, CancellationToken cancellationToken = default);
+    public Task<bool> NameExistsAsync(string name, Guid? parentId, Guid? excludeId = null, CancellationToken cancellationToken = default);
 
     #endregion
 }

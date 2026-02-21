@@ -14,6 +14,8 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<AuditLog> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("AuditLogs");

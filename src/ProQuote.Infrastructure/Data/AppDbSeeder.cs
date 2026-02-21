@@ -11,7 +11,7 @@ namespace ProQuote.Infrastructure.Data;
 /// <summary>
 /// Database seeder for initializing the database with required and sample data.
 /// </summary>
-public class AppDbSeeder
+public partial class AppDbSeeder
 {
     #region Fields
 
@@ -62,11 +62,11 @@ public class AppDbSeeder
             await SeedCategoriesAsync();
             await SeedSampleDataAsync();
 
-            _logger.LogInformation("Database seeding completed successfully");
+            LogDatabaseSeedingCompleted(_logger);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while seeding the database");
+            LogDatabaseSeedingFailed(_logger, ex);
             throw;
         }
     }
@@ -97,12 +97,11 @@ public class AppDbSeeder
 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("Created role: {RoleName}", roleName);
+                    LogRoleCreated(_logger, roleName);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to create role {RoleName}: {Errors}",
-                        roleName, string.Join(", ", result.Errors.Select(e => e.Description)));
+                    LogRoleCreationFailed(_logger, roleName, string.Join(", ", result.Errors.Select(e => e.Description)));
                 }
             }
         }
@@ -136,12 +135,11 @@ public class AppDbSeeder
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(adminUser, ApplicationRoles.Admin);
-                _logger.LogInformation("Created admin user: {Email}", adminEmail);
+                LogAdminUserCreated(_logger, adminEmail);
             }
             else
             {
-                _logger.LogWarning("Failed to create admin user: {Errors}",
-                    string.Join(", ", result.Errors.Select(e => e.Description)));
+                LogAdminUserCreationFailed(_logger, string.Join(", ", result.Errors.Select(e => e.Description)));
             }
         }
     }
@@ -189,7 +187,7 @@ public class AppDbSeeder
         await _context.Categories.AddRangeAsync(categories);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Seeded {Count} categories", categories.Count);
+        LogCategoriesSeeded(_logger, categories.Count);
     }
 
     /// <summary>
@@ -226,7 +224,7 @@ public class AppDbSeeder
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(buyer, ApplicationRoles.Buyer);
-                _logger.LogInformation("Created sample buyer: {Email}", buyerEmail);
+                LogSampleBuyerCreated(_logger, buyerEmail);
             }
         }
 
@@ -276,7 +274,7 @@ public class AppDbSeeder
                     };
 
                     suppliers.Add(supplier);
-                    _logger.LogInformation("Created sample supplier: {Email}", email);
+                    LogSampleSupplierCreated(_logger, email);
                 }
             }
         }
@@ -363,7 +361,7 @@ public class AppDbSeeder
             await _context.Rfqs.AddAsync(sampleRfq);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Created sample RFQ: {ReferenceNumber}", sampleRfq.ReferenceNumber);
+            LogSampleRfqCreated(_logger, sampleRfq.ReferenceNumber);
         }
     }
 
@@ -382,6 +380,36 @@ public class AppDbSeeder
             _ => string.Empty
         };
     }
+
+    [LoggerMessage(EventId = 1000, Level = LogLevel.Information, Message = "Database seeding completed successfully")]
+    private static partial void LogDatabaseSeedingCompleted(ILogger logger);
+
+    [LoggerMessage(EventId = 1001, Level = LogLevel.Error, Message = "An error occurred while seeding the database")]
+    private static partial void LogDatabaseSeedingFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 1002, Level = LogLevel.Information, Message = "Created role: {RoleName}")]
+    private static partial void LogRoleCreated(ILogger logger, string roleName);
+
+    [LoggerMessage(EventId = 1003, Level = LogLevel.Warning, Message = "Failed to create role {RoleName}: {Errors}")]
+    private static partial void LogRoleCreationFailed(ILogger logger, string roleName, string errors);
+
+    [LoggerMessage(EventId = 1004, Level = LogLevel.Information, Message = "Created admin user: {Email}")]
+    private static partial void LogAdminUserCreated(ILogger logger, string email);
+
+    [LoggerMessage(EventId = 1005, Level = LogLevel.Warning, Message = "Failed to create admin user: {Errors}")]
+    private static partial void LogAdminUserCreationFailed(ILogger logger, string errors);
+
+    [LoggerMessage(EventId = 1006, Level = LogLevel.Information, Message = "Seeded {Count} categories")]
+    private static partial void LogCategoriesSeeded(ILogger logger, int count);
+
+    [LoggerMessage(EventId = 1007, Level = LogLevel.Information, Message = "Created sample buyer: {Email}")]
+    private static partial void LogSampleBuyerCreated(ILogger logger, string email);
+
+    [LoggerMessage(EventId = 1008, Level = LogLevel.Information, Message = "Created sample supplier: {Email}")]
+    private static partial void LogSampleSupplierCreated(ILogger logger, string email);
+
+    [LoggerMessage(EventId = 1009, Level = LogLevel.Information, Message = "Created sample RFQ: {ReferenceNumber}")]
+    private static partial void LogSampleRfqCreated(ILogger logger, string referenceNumber);
 
     #endregion
 }

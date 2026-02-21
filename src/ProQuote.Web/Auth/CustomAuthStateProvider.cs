@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
@@ -73,7 +74,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             _currentUser = user;
             return new AuthenticationState(user);
         }
-        catch
+        catch (InvalidOperationException)
         {
             // During prerender, browser storage isn't available. Preserve in-circuit auth state if present.
             if (_currentUser.Identity?.IsAuthenticated == true)
@@ -92,6 +93,8 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     /// <param name="response">The authentication response.</param>
     public async Task MarkUserAsAuthenticatedAsync(AuthResponse response)
     {
+        ArgumentNullException.ThrowIfNull(response);
+
         if (response.User == null || string.IsNullOrEmpty(response.AccessToken))
         {
             return;
@@ -123,7 +126,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
                 await authService.LogoutAsync(refreshTokenResult.Value);
             }
         }
-        catch
+        catch (InvalidOperationException)
         {
             // Continue with local logout even if server logout fails
         }
@@ -147,7 +150,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             ProtectedBrowserStorageResult<string> result = await _localStorage.GetAsync<string>(AuthTokenKey);
             return result.Success ? result.Value : null;
         }
-        catch
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (CryptographicException)
         {
             return null;
         }
@@ -164,7 +171,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             ProtectedBrowserStorageResult<string> result = await _localStorage.GetAsync<string>(RefreshTokenKey);
             return result.Success ? result.Value : null;
         }
-        catch
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (CryptographicException)
         {
             return null;
         }
@@ -181,7 +192,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             ProtectedBrowserStorageResult<UserDto> result = await _localStorage.GetAsync<UserDto>(UserDataKey);
             return result.Success ? result.Value : null;
         }
-        catch
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (CryptographicException)
         {
             return null;
         }

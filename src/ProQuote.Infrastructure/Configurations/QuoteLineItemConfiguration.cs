@@ -13,6 +13,8 @@ public class QuoteLineItemConfiguration : IEntityTypeConfiguration<QuoteLineItem
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<QuoteLineItem> builder)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         #region Table
 
         builder.ToTable("QuoteLineItems");
