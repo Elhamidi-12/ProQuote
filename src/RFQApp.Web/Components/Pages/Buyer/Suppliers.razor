@@ -1,0 +1,11 @@
+@page "/buyer/suppliers"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Suppliers - RFQ App</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Suppliers</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for supplier browsing.
+</MudAlert>

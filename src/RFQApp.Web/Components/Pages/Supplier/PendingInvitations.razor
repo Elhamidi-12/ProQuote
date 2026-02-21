@@ -1,0 +1,11 @@
+@page "/supplier/invitations/pending"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+
+<PageTitle>Pending Invitations - RFQ App</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Pending Response</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for pending invitation responses.
+</MudAlert>

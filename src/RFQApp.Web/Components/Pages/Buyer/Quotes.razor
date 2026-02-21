@@ -1,0 +1,11 @@
+@page "/buyer/quotes"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Received Quotes - RFQ App</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Received Quotes</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for quote review.
+</MudAlert>

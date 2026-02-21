@@ -136,7 +136,7 @@
 
                 // Redirect based on role
                 string redirectUrl = GetRedirectUrl(response.User!);
-                NavigationManager.NavigateTo(redirectUrl, forceLoad: true);
+                NavigationManager.NavigateTo(redirectUrl, forceLoad: false);
             }
             else
             {
@@ -156,9 +156,18 @@
 
     private string GetRedirectUrl(UserDto user)
     {
-        if (!string.IsNullOrEmpty(ReturnUrl) && Uri.TryCreate(ReturnUrl, UriKind.Relative, out _))
+        if (!string.IsNullOrEmpty(ReturnUrl))
         {
-            return ReturnUrl;
+            if (Uri.TryCreate(ReturnUrl, UriKind.Relative, out _))
+            {
+                return ReturnUrl;
+            }
+
+            if (Uri.TryCreate(ReturnUrl, UriKind.Absolute, out Uri? absoluteReturnUrl) &&
+                absoluteReturnUrl.Host == new Uri(NavigationManager.BaseUri).Host)
+            {
+                return absoluteReturnUrl.PathAndQuery;
+            }
         }
 
         // Redirect to role-specific dashboard

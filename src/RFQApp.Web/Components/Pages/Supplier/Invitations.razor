@@ -1,0 +1,11 @@
+@page "/supplier/invitations"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+
+<PageTitle>RFQ Invitations - RFQ App</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">All Invitations</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for invitation management.
+</MudAlert>

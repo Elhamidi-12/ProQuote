@@ -1,0 +1,11 @@
+@page "/supplier/quotes/awarded"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+
+<PageTitle>Won Quotes - RFQ App</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Won Quotes</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for awarded contract history.
+</MudAlert>

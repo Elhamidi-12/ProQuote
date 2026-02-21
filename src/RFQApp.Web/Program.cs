@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components.Authorization;
 
+using MudBlazor;
 using MudBlazor.Services;
 
 using RFQApp.Infrastructure;
@@ -13,7 +14,10 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Add MudBlazor
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(config =>
+{
+    config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
+});
 
 // Add Authentication State Provider
 builder.Services.AddScoped<CustomAuthStateProvider>();
@@ -43,10 +47,6 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
-
-// Authentication & Authorization middleware
-app.UseAuthentication();
-app.UseAuthorization();
 
 app.UseAntiforgery();
 

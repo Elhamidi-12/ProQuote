@@ -1,0 +1,11 @@
+@page "/admin/suppliers/pending"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+
+<PageTitle>Pending Suppliers - RFQ App</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Pending Suppliers</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for supplier approval workflows.
+</MudAlert>
