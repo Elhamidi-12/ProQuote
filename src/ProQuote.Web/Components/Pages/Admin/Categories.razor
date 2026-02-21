@@ -1,0 +1,11 @@
+@page "/admin/categories"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+
+<PageTitle>Categories - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Categories</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for category management.
+</MudAlert>

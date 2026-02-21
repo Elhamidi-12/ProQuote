@@ -1,0 +1,11 @@
+@page "/supplier/company"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+
+<PageTitle>Company Profile - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Company Profile</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for company profile management.
+</MudAlert>

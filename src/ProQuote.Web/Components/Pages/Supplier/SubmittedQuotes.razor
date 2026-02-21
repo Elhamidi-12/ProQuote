@@ -1,0 +1,11 @@
+@page "/supplier/quotes/submitted"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+
+<PageTitle>Submitted Quotes - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Submitted Quotes</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for submitted quote tracking.
+</MudAlert>

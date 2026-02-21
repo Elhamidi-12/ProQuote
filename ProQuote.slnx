@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ProQuote.Application/ProQuote.Application.csproj" />
+    <Project Path="src/ProQuote.Domain/ProQuote.Domain.csproj" />
+    <Project Path="src/ProQuote.Infrastructure/ProQuote.Infrastructure.csproj" />
+    <Project Path="src/ProQuote.Web/ProQuote.Web.csproj" />
+  </Folder>
+</Solution>

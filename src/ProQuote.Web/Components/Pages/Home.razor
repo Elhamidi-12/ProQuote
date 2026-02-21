@@ -1,0 +1,70 @@
+@page "/"
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+
+<PageTitle>ProQuote</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @* Redirect authenticated users to their role-specific dashboard *@
+        <RedirectToDashboard />
+    </Authorized>
+    <NotAuthorized>
+        @* Landing page for unauthenticated users *@
+        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" Class="text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Color="Color.Primary" Style="font-size: 5rem;" />
+                    <MudText Typo="Typo.h2" Class="mt-4">ProQuote</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Secondary" Class="mt-2">
+                        Streamline your procurement process with our powerful RFQ system
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12" Class="text-center mt-8">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/login" Class="mx-2">
+                        Sign In
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" Href="/register" Class="mx-2">
+                        Register as Buyer
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Large" Href="/register/supplier" Class="mx-2">
+                        Register as Supplier
+                    </MudButton>
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-16">
+                    <MudGrid>
+                        <MudItem xs="12" md="4">
+                            <MudPaper Elevation="2" Class="pa-6 text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Speed" Color="Color.Primary" Style="font-size: 3rem;" />
+                                <MudText Typo="Typo.h6" Class="mt-4">Fast & Efficient</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                                    Create and manage RFQs in minutes. Streamline your entire procurement workflow.
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudPaper Elevation="2" Class="pa-6 text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Compare" Color="Color.Primary" Style="font-size: 3rem;" />
+                                <MudText Typo="Typo.h6" Class="mt-4">Easy Comparison</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                                    Compare quotes side-by-side and make informed decisions with detailed analytics.
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudPaper Elevation="2" Class="pa-6 text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Style="font-size: 3rem;" />
+                                <MudText Typo="Typo.h6" Class="mt-4">Secure & Compliant</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                                    Full audit trail and secure document management for complete compliance.
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>

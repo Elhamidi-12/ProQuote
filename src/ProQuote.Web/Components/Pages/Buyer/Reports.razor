@@ -1,0 +1,11 @@
+@page "/buyer/reports"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Buyer Reports - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Reports</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for buyer reporting.
+</MudAlert>

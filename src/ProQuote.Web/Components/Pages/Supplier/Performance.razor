@@ -1,0 +1,11 @@
+@page "/supplier/performance"
+@rendermode InteractiveServer
+@layout SupplierLayout
+@attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+
+<PageTitle>Supplier Performance - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Performance</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for supplier performance metrics.
+</MudAlert>

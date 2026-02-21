@@ -1,0 +1,11 @@
+@page "/buyer/messages"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Messages - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Messages</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for buyer messaging.
+</MudAlert>

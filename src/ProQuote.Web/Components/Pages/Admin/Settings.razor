@@ -1,0 +1,11 @@
+@page "/admin/settings"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+
+<PageTitle>Admin Settings - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Settings</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for admin settings configuration.
+</MudAlert>

@@ -1,0 +1,20 @@
+@page "/access-denied"
+
+<PageTitle>Access Denied - ProQuote</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="3" Class="pa-8 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Error" Size="Size.Large" Class="mb-4" Style="font-size: 4rem;" />
+        <MudText Typo="Typo.h4" Class="mb-4">Access Denied</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-6">
+            You don't have permission to access this page.
+            Please contact your administrator if you believe this is an error.
+        </MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/" Class="mr-2">
+            Go to Home
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Href="/login">
+            Login with Different Account
+        </MudButton>
+    </MudPaper>
+</MudContainer>

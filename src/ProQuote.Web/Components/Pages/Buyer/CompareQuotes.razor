@@ -1,0 +1,11 @@
+@page "/buyer/quotes/compare"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Compare Quotes - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Compare Quotes</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for quote comparison.
+</MudAlert>

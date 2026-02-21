@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/RFQApp.Application/RFQApp.Application.csproj" />
-    <Project Path="src/RFQApp.Domain/RFQApp.Domain.csproj" />
-    <Project Path="src/RFQApp.Infrastructure/RFQApp.Infrastructure.csproj" />
-    <Project Path="src/RFQApp.Web/RFQApp.Web.csproj" />
-  </Folder>
-</Solution>

@@ -1,0 +1,197 @@
+@page "/login"
+@rendermode InteractiveServer
+@inject IAuthService AuthService
+@inject CustomAuthStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Login - ProQuote</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="3" Class="pa-8">
+        <MudStack Spacing="4">
+            <div class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Color="Color.Primary" Size="Size.Large" Style="font-size: 3rem;" />
+                <MudText Typo="Typo.h4" Class="mt-2">ProQuote</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Sign in to your account</MudText>
+            </div>
+
+            <EditForm Model="_loginRequest" OnValidSubmit="HandleLoginAsync" FormName="loginForm">
+                <DataAnnotationsValidator />
+
+                <MudTextField @bind-Value="_loginRequest.Email"
+                              Label="Email"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Email"
+                              For="@(() => _loginRequest.Email)"
+                              Class="mb-4"
+                              Disabled="_isLoading" />
+
+                <MudTextField @bind-Value="_loginRequest.Password"
+                              Label="Password"
+                              Variant="Variant.Outlined"
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              For="@(() => _loginRequest.Password)"
+                              Class="mb-4"
+                              Disabled="_isLoading"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                              OnAdornmentClick="@(() => _showPassword = !_showPassword)" />
+
+                <MudCheckBox @bind-Value="_loginRequest.RememberMe"
+                             Label="Remember me"
+                             Color="Color.Primary"
+                             Class="mb-4"
+                             Disabled="_isLoading" />
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">
+                        @_errorMessage
+                    </MudAlert>
+                }
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Disabled="_isLoading"
+                           Class="mb-4">
+                    @if (_isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Signing in...</span>
+                    }
+                    else
+                    {
+                        <span>Sign In</span>
+                    }
+                </MudButton>
+            </EditForm>
+
+            <MudDivider />
+
+            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
+                <MudText Typo="Typo.body2">Don't have an account?</MudText>
+                <MudLink Href="/register" Typo="Typo.body2">Register as Buyer</MudLink>
+            </MudStack>
+
+            <MudStack Row="true" Justify="Justify.Center" Spacing="1">
+                <MudText Typo="Typo.body2">Are you a supplier?</MudText>
+                <MudLink Href="/register/supplier" Typo="Typo.body2">Register as Supplier</MudLink>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Elevation="1" Class="pa-4 mt-4">
+        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">Demo Accounts</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => FillDemoCredentials("admin@rfqapp.com", "Admin@123456"))">
+                    Admin
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => FillDemoCredentials("buyer@example.com", "Buyer@123456"))">
+                    Buyer
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="@(() => FillDemoCredentials("supplier1@acmecorp.com", "Supplier@123456"))">
+                    Supplier
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    #region Fields
+
+    private LoginRequest _loginRequest = new();
+    private bool _isLoading;
+    private bool _showPassword;
+    private string? _errorMessage;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    #endregion
+
+    #region Methods
+
+    private async Task HandleLoginAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            AuthResponse response = await AuthService.LoginAsync(_loginRequest);
+
+            if (response.Succeeded)
+            {
+                await AuthStateProvider.MarkUserAsAuthenticatedAsync(response);
+                Snackbar.Add($"Welcome back, {response.User?.FirstName}!", Severity.Success);
+
+                // Redirect based on role
+                string redirectUrl = GetRedirectUrl(response.User!);
+                NavigationManager.NavigateTo(redirectUrl, forceLoad: false);
+            }
+            else
+            {
+                _errorMessage = response.ErrorMessage ?? "Login failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "An unexpected error occurred. Please try again.";
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetRedirectUrl(UserDto user)
+    {
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            if (Uri.TryCreate(ReturnUrl, UriKind.Relative, out _))
+            {
+                return ReturnUrl;
+            }
+
+            if (Uri.TryCreate(ReturnUrl, UriKind.Absolute, out Uri? absoluteReturnUrl) &&
+                absoluteReturnUrl.Host == new Uri(NavigationManager.BaseUri).Host)
+            {
+                return absoluteReturnUrl.PathAndQuery;
+            }
+        }
+
+        // Redirect to role-specific dashboard
+        if (user.Roles.Contains(ApplicationRoles.Admin))
+        {
+            return "/admin/dashboard";
+        }
+        else if (user.Roles.Contains(ApplicationRoles.Supplier))
+        {
+            return "/supplier/dashboard";
+        }
+        else if (user.Roles.Contains(ApplicationRoles.Buyer))
+        {
+            return "/buyer/dashboard";
+        }
+
+        return "/";
+    }
+
+    private void FillDemoCredentials(string email, string password)
+    {
+        _loginRequest.Email = email;
+        _loginRequest.Password = password;
+    }
+
+    #endregion
+}

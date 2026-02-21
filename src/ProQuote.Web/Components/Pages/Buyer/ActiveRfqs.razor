@@ -1,0 +1,11 @@
+@page "/buyer/rfqs/active"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Active RFQs - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Active RFQs</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for active RFQ tracking.
+</MudAlert>

@@ -1,0 +1,190 @@
+@page "/admin/dashboard"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+
+<PageTitle>Admin Dashboard - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Admin Dashboard</MudText>
+
+<MudGrid>
+    @* Stats Cards *@
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Users</MudText>
+                    <MudText Typo="Typo.h4">@_stats.TotalUsers</MudText>
+                </div>
+                <MudAvatar Color="Color.Primary" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.People" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Pending Suppliers</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Warning">@_stats.PendingSuppliers</MudText>
+                </div>
+                <MudAvatar Color="Color.Warning" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Active RFQs</MudText>
+                    <MudText Typo="Typo.h4">@_stats.ActiveRfqs</MudText>
+                </div>
+                <MudAvatar Color="Color.Success" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.RequestQuote" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Categories</MudText>
+                    <MudText Typo="Typo.h4">@_stats.TotalCategories</MudText>
+                </div>
+                <MudAvatar Color="Color.Info" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.Category" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    @* Pending Suppliers *@
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.PendingActions" Class="mr-2" />
+                Pending Supplier Approvals
+            </MudText>
+            @if (_pendingSuppliers.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No pending supplier registrations.</MudAlert>
+            }
+            else
+            {
+                <MudList T="Domain.Entities.Supplier" Dense="true">
+                    @foreach (Domain.Entities.Supplier supplier in _pendingSuppliers.Take(5))
+                    {
+                        <MudListItem>
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.body1">@supplier.CompanyName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@supplier.Email</MudText>
+                                </div>
+                                <MudButtonGroup Size="Size.Small" Variant="Variant.Text">
+                                    <MudButton Color="Color.Success">Approve</MudButton>
+                                    <MudButton Color="Color.Error">Reject</MudButton>
+                                </MudButtonGroup>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+                @if (_pendingSuppliers.Count > 5)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" Href="/admin/suppliers/pending">
+                        View All (@_pendingSuppliers.Count)
+                    </MudButton>
+                }
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* Recent Activity *@
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+                Recent Activity
+            </MudText>
+            <MudTimeline TimelinePosition="TimelinePosition.Start">
+                <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                    <MudText Typo="Typo.body2">New supplier registered: <strong>TechPro Solutions</strong></MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">2 hours ago</MudText>
+                </MudTimelineItem>
+                <MudTimelineItem Color="Color.Primary" Size="Size.Small">
+                    <MudText Typo="Typo.body2">RFQ <strong>RFQ-2025-00042</strong> was published</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">4 hours ago</MudText>
+                </MudTimelineItem>
+                <MudTimelineItem Color="Color.Warning" Size="Size.Small">
+                    <MudText Typo="Typo.body2">Quote submitted for <strong>RFQ-2025-00041</strong></MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Yesterday</MudText>
+                </MudTimelineItem>
+                <MudTimelineItem Color="Color.Info" Size="Size.Small">
+                    <MudText Typo="Typo.body2">Supplier <strong>ACME Corp</strong> approved</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">2 days ago</MudText>
+                </MudTimelineItem>
+            </MudTimeline>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    #region Fields
+
+    private DashboardStats _stats = new();
+    private List<Domain.Entities.Supplier> _pendingSuppliers = [];
+
+    #endregion
+
+    #region Lifecycle
+
+    [Inject]
+    private IUnitOfWork UnitOfWork { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardDataAsync();
+    }
+
+    #endregion
+
+    #region Methods
+
+    private async Task LoadDashboardDataAsync()
+    {
+        IReadOnlyList<Domain.Entities.Supplier> pending = await UnitOfWork.Suppliers.GetByStatusAsync(Domain.Enums.SupplierStatus.Pending);
+        _pendingSuppliers = pending.ToList();
+
+        IReadOnlyList<Domain.Entities.Category> categories = await UnitOfWork.Categories.GetActiveCategoriesAsync();
+        IReadOnlyList<Domain.Entities.Rfq> activeRfqs = await UnitOfWork.Rfqs.GetByStatusAsync(Domain.Enums.RfqStatus.Published);
+
+        _stats = new DashboardStats
+        {
+            PendingSuppliers = _pendingSuppliers.Count,
+            TotalCategories = categories.Count,
+            ActiveRfqs = activeRfqs.Count,
+            TotalUsers = 10 // Placeholder - would need to query users
+        };
+    }
+
+    #endregion
+
+    #region Classes
+
+    private class DashboardStats
+    {
+        public int TotalUsers { get; set; }
+        public int PendingSuppliers { get; set; }
+        public int ActiveRfqs { get; set; }
+        public int TotalCategories { get; set; }
+    }
+
+    #endregion
+}

@@ -1,0 +1,11 @@
+@page "/admin/users"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+
+<PageTitle>Admin Users - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">All Users</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for users management implementation.
+</MudAlert>

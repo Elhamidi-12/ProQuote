@@ -1,0 +1,274 @@
+@page "/buyer/dashboard"
+@rendermode InteractiveServer
+@layout BuyerLayout
+@attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+
+<PageTitle>Buyer Dashboard - ProQuote</PageTitle>
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">Buyer Dashboard</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/buyer/rfqs/create">
+        Create RFQ
+    </MudButton>
+</MudStack>
+
+<MudGrid>
+    @* Stats Cards *@
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Draft RFQs</MudText>
+                    <MudText Typo="Typo.h4">@_stats.DraftRfqs</MudText>
+                </div>
+                <MudAvatar Color="Color.Default" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.Edit" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Active RFQs</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Primary">@_stats.ActiveRfqs</MudText>
+                </div>
+                <MudAvatar Color="Color.Primary" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.RequestQuote" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Pending Quotes</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Warning">@_stats.PendingQuotes</MudText>
+                </div>
+                <MudAvatar Color="Color.Warning" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.Description" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Awarded</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">@_stats.AwardedRfqs</MudText>
+                </div>
+                <MudAvatar Color="Color.Success" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                </MudAvatar>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    @* Active RFQs *@
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Class="mr-2" />
+                    My Active RFQs
+                </MudText>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/buyer/rfqs/active">View All</MudButton>
+            </MudStack>
+
+            @if (_activeRfqs.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    No active RFQs. <MudLink Href="/buyer/rfqs/create">Create one now!</MudLink>
+                </MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_activeRfqs" Hover="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Reference</MudTh>
+                        <MudTh>Title</MudTh>
+                        <MudTh>Deadline</MudTh>
+                        <MudTh>Quotes</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Reference">
+                            <MudText Typo="Typo.body2">@context.ReferenceNumber</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Title">
+                            <MudText Typo="Typo.body2">@context.Title</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Deadline">
+                            <MudChip T="string" Size="Size.Small" Color="@GetDeadlineColor(context.SubmissionDeadline)">
+                                @context.SubmissionDeadline.ToString("MMM dd, yyyy")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Quotes">
+                            <MudBadge Content="@context.Quotes.Count" Color="Color.Primary" Overlap="false">
+                                <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" />
+                            </MudBadge>
+                        </MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Href="@($"/buyer/rfqs/{context.Id}")" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* Quick Actions *@
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.FlashOn" Class="mr-2" />
+                Quick Actions
+            </MudText>
+            <MudStack Spacing="2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add" Href="/buyer/rfqs/create">
+                    Create New RFQ
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.Compare" Href="/buyer/quotes/compare">
+                    Compare Quotes
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true" StartIcon="@Icons.Material.Filled.Business" Href="/buyer/suppliers">
+                    Browse Suppliers
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true" StartIcon="@Icons.Material.Filled.Assessment" Href="/buyer/reports">
+                    View Reports
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mt-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="mr-2" />
+                Upcoming Deadlines
+            </MudText>
+            @if (_upcomingDeadlines.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No upcoming deadlines.</MudText>
+            }
+            else
+            {
+                <MudList T="Domain.Entities.Rfq" Dense="true">
+                    @foreach (Domain.Entities.Rfq rfq in _upcomingDeadlines)
+                    {
+                        <MudListItem>
+                            <MudStack>
+                                <MudText Typo="Typo.body2">@rfq.Title</MudText>
+                                <MudText Typo="Typo.caption" Color="@GetDeadlineTextColor(rfq.SubmissionDeadline)">
+                                    @GetDeadlineText(rfq.SubmissionDeadline)
+                                </MudText>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    #region Fields
+
+    private DashboardStats _stats = new();
+    private List<Domain.Entities.Rfq> _activeRfqs = [];
+    private List<Domain.Entities.Rfq> _upcomingDeadlines = [];
+
+    #endregion
+
+    #region Lifecycle
+
+    [Inject]
+    private IUnitOfWork UnitOfWork { get; set; } = default!;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardDataAsync();
+    }
+
+    #endregion
+
+    #region Methods
+
+    private async Task LoadDashboardDataAsync()
+    {
+        AuthenticationState authState = await AuthState;
+        string? userIdString = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (Guid.TryParse(userIdString, out Guid userId))
+        {
+            IReadOnlyList<Domain.Entities.Rfq> allRfqs = await UnitOfWork.Rfqs.GetByBuyerIdAsync(userId);
+
+            _stats.DraftRfqs = allRfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Draft);
+            _stats.ActiveRfqs = allRfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Published);
+            _stats.AwardedRfqs = allRfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Awarded);
+            _stats.PendingQuotes = allRfqs.Where(r => r.Status == Domain.Enums.RfqStatus.Published).Sum(r => r.Quotes.Count);
+
+            _activeRfqs = allRfqs.Where(r => r.Status == Domain.Enums.RfqStatus.Published).Take(5).ToList();
+
+            _upcomingDeadlines = allRfqs
+                .Where(r => r.Status == Domain.Enums.RfqStatus.Published && r.SubmissionDeadline > DateTime.UtcNow)
+                .OrderBy(r => r.SubmissionDeadline)
+                .Take(5)
+                .ToList();
+        }
+    }
+
+    private static Color GetDeadlineColor(DateTime deadline)
+    {
+        int daysLeft = (deadline - DateTime.UtcNow).Days;
+        return daysLeft switch
+        {
+            <= 1 => Color.Error,
+            <= 3 => Color.Warning,
+            _ => Color.Success
+        };
+    }
+
+    private static Color GetDeadlineTextColor(DateTime deadline)
+    {
+        int daysLeft = (deadline - DateTime.UtcNow).Days;
+        return daysLeft switch
+        {
+            <= 1 => Color.Error,
+            <= 3 => Color.Warning,
+            _ => Color.Secondary
+        };
+    }
+
+    private static string GetDeadlineText(DateTime deadline)
+    {
+        int daysLeft = (deadline - DateTime.UtcNow).Days;
+        return daysLeft switch
+        {
+            0 => "Due today!",
+            1 => "Due tomorrow",
+            _ => $"Due in {daysLeft} days"
+        };
+    }
+
+    #endregion
+
+    #region Classes
+
+    private class DashboardStats
+    {
+        public int DraftRfqs { get; set; }
+        public int ActiveRfqs { get; set; }
+        public int PendingQuotes { get; set; }
+        public int AwardedRfqs { get; set; }
+    }
+
+    #endregion
+}

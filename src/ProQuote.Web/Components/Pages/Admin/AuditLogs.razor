@@ -1,0 +1,11 @@
+@page "/admin/audit-logs"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+
+<PageTitle>Audit Logs - ProQuote</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-2">Audit Logs</MudText>
+<MudAlert Severity="Severity.Info" Dense="true">
+    This page is available and ready for audit trail review.
+</MudAlert>
