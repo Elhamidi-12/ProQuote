@@ -21,18 +21,22 @@ public class BuyerRfqsController : ApiControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBuyerQuoteManagementService _buyerQuoteManagementService;
+    private readonly IAuditLogService _auditLogService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BuyerRfqsController"/> class.
     /// </summary>
     /// <param name="unitOfWork">Unit of work.</param>
     /// <param name="buyerQuoteManagementService">Buyer quote management service.</param>
+    /// <param name="auditLogService">Audit log service.</param>
     public BuyerRfqsController(
         IUnitOfWork unitOfWork,
-        IBuyerQuoteManagementService buyerQuoteManagementService)
+        IBuyerQuoteManagementService buyerQuoteManagementService,
+        IAuditLogService auditLogService)
     {
         _unitOfWork = unitOfWork;
         _buyerQuoteManagementService = buyerQuoteManagementService;
+        _auditLogService = auditLogService;
     }
 
     /// <summary>
@@ -142,6 +146,15 @@ public class BuyerRfqsController : ApiControllerBase
         await _unitOfWork.Rfqs.AddAsync(rfq);
         await _unitOfWork.SaveChangesAsync();
 
+        await _auditLogService.LogRfqActionAsync(
+            rfq.Id,
+            CurrentUserId.Value,
+            "RfqCreated",
+            "Rfq",
+            rfq.Id,
+            details: request.Publish ? "RFQ created and published via API." : "RFQ draft created via API.",
+            ipAddress: RemoteIpAddress);
+
         return CreatedAtAction(nameof(GetById), new { id = rfq.Id }, ToDetails(rfq));
     }
 
@@ -207,6 +220,15 @@ public class BuyerRfqsController : ApiControllerBase
 
         _unitOfWork.Rfqs.Update(rfq);
         await _unitOfWork.SaveChangesAsync();
+
+        await _auditLogService.LogRfqActionAsync(
+            rfq.Id,
+            CurrentUserId.Value,
+            "RfqUpdated",
+            "Rfq",
+            rfq.Id,
+            details: request.Publish ? "RFQ updated and published via API." : "RFQ updated via API.",
+            ipAddress: RemoteIpAddress);
 
         return Ok(ToDetails(rfq));
     }

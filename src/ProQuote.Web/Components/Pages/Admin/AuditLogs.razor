@@ -2,10 +2,74 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using ProQuote.Application.DTOs.Audit
+@inject IAuditLogService AuditLogService
+@inject ToastService ToastService
 
 <PageTitle>Audit Logs - ProQuote</PageTitle>
 
 <h1 class="pq-section-title">Audit Logs</h1>
 <PqCard>
-    <p class="pq-body-sm">This page is available and ready for audit trail review.</p>
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm">Loading audit logs...</p>
+    }
+    else if (_logs.Count == 0)
+    {
+        <p class="pq-body-sm">No audit logs yet.</p>
+    }
+    else
+    {
+        <PqTable Headers="_headers">
+            @foreach (AuditLogListItemDto item in _logs)
+            {
+                <tr>
+                    <td>@item.Timestamp.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                    <td>@item.RfqReferenceNumber</td>
+                    <td>@item.Action</td>
+                    <td>@item.EntityType</td>
+                    <td>@item.UserDisplayName</td>
+                    <td>@(string.IsNullOrWhiteSpace(item.Details) ? "-" : item.Details)</td>
+                </tr>
+            }
+        </PqTable>
+    }
 </PqCard>
+
+@code {
+    private bool _isLoading = true;
+    private List<AuditLogListItemDto> _logs = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Timestamp", Field = "timestamp", Width = "170px" },
+        new() { Label = "RFQ", Field = "rfq", Width = "130px" },
+        new() { Label = "Action", Field = "action", Width = "180px" },
+        new() { Label = "Entity", Field = "entity", Width = "120px" },
+        new() { Label = "Actor", Field = "actor", Width = "180px" },
+        new() { Label = "Details", Field = "details" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            IReadOnlyList<AuditLogListItemDto> logs = await AuditLogService.GetRecentRfqAuditLogsAsync(250);
+            _logs = logs.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load audit logs");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

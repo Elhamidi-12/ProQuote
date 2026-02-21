@@ -20,7 +20,8 @@ public class QuoteSubmissionServiceTests
         (ApplicationUserIdentity buyer, ApplicationUserIdentity supplierUser, Supplier supplier, Rfq rfq, RfqInvitation invitation, LineItem lineItem) =
             await SeedQuoteScenarioAsync(context, DateTime.UtcNow.AddDays(3));
 
-        QuoteSubmissionService service = new(context);
+        AuditLogService auditLogService = new(context);
+        QuoteSubmissionService service = new(context, auditLogService);
 
         SaveQuoteRequest request = new()
         {
@@ -44,12 +45,14 @@ public class QuoteSubmissionServiceTests
         Quote? savedQuote = await context.Quotes.FirstOrDefaultAsync(q => q.RfqId == rfq.Id && q.SupplierId == supplier.Id);
         RfqInvitation? updatedInvitation = await context.RfqInvitations.FirstOrDefaultAsync(i => i.RfqId == rfq.Id && i.SupplierId == supplier.Id);
         Rfq? updatedRfq = await context.Rfqs.FirstOrDefaultAsync(r => r.Id == rfq.Id);
+        AuditLog? audit = await context.AuditLogs.FirstOrDefaultAsync(a => a.RfqId == rfq.Id && a.Action == "QuoteSubmitted");
 
         Assert.True(response.Succeeded);
         Assert.NotNull(savedQuote);
         Assert.Equal(120m * lineItem.Quantity, savedQuote!.TotalAmount);
         Assert.Equal(InvitationStatus.Quoted, updatedInvitation!.Status);
         Assert.Equal(RfqStatus.QuotesReceived, updatedRfq!.Status);
+        Assert.NotNull(audit);
     }
 
     [Fact]
@@ -60,7 +63,8 @@ public class QuoteSubmissionServiceTests
         (_, ApplicationUserIdentity supplierUser, _, Rfq rfq, _, LineItem lineItem) =
             await SeedQuoteScenarioAsync(context, DateTime.UtcNow.AddMinutes(-5));
 
-        QuoteSubmissionService service = new(context);
+        AuditLogService auditLogService = new(context);
+        QuoteSubmissionService service = new(context, auditLogService);
 
         SaveQuoteRequest request = new()
         {

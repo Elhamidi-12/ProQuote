@@ -17,13 +17,15 @@ public class BuyerQuoteManagementServiceTests
         using var context = TestDbContextFactory.Create(Guid.NewGuid().ToString());
 
         (ApplicationUserIdentity buyer, Rfq rfq, Quote winningQuote, Quote losingQuote) = await SeedAwardScenarioAsync(context);
-        BuyerQuoteManagementService service = new(context);
+        AuditLogService auditLogService = new(context);
+        BuyerQuoteManagementService service = new(context, auditLogService);
 
         var response = await service.AwardQuoteAsync(buyer.Id, rfq.Id, winningQuote.Id, "Best total and lead time");
 
         Quote? updatedWinner = await context.Quotes.FirstOrDefaultAsync(q => q.Id == winningQuote.Id);
         Quote? updatedLoser = await context.Quotes.FirstOrDefaultAsync(q => q.Id == losingQuote.Id);
         Rfq? updatedRfq = await context.Rfqs.FirstOrDefaultAsync(r => r.Id == rfq.Id);
+        AuditLog? audit = await context.AuditLogs.FirstOrDefaultAsync(a => a.RfqId == rfq.Id && a.Action == "QuoteAwarded");
 
         Assert.True(response.Succeeded);
         Assert.NotNull(updatedWinner);
@@ -36,6 +38,7 @@ public class BuyerQuoteManagementServiceTests
         Assert.Equal(QuoteStatus.Rejected, updatedLoser.Status);
         Assert.Equal(RfqStatus.Awarded, updatedRfq!.Status);
         Assert.NotNull(updatedRfq.AwardedAt);
+        Assert.NotNull(audit);
     }
 
     [Fact]
@@ -44,7 +47,8 @@ public class BuyerQuoteManagementServiceTests
         using var context = TestDbContextFactory.Create(Guid.NewGuid().ToString());
 
         (ApplicationUserIdentity buyer, Rfq rfq, Quote winningQuote, _) = await SeedAwardScenarioAsync(context);
-        BuyerQuoteManagementService service = new(context);
+        AuditLogService auditLogService = new(context);
+        BuyerQuoteManagementService service = new(context, auditLogService);
 
         var response = await service.AwardQuoteAsync(Guid.NewGuid(), rfq.Id, winningQuote.Id);
 

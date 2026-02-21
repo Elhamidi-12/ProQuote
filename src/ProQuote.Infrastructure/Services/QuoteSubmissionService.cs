@@ -14,15 +14,19 @@ namespace ProQuote.Infrastructure.Services;
 public class QuoteSubmissionService : IQuoteSubmissionService
 {
     private readonly AppDbContext _context;
+    private readonly IAuditLogService _auditLogService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="QuoteSubmissionService"/> class.
     /// </summary>
     /// <param name="context">Database context.</param>
-    public QuoteSubmissionService(AppDbContext context)
+    /// <param name="auditLogService">Audit log service.</param>
+    public QuoteSubmissionService(AppDbContext context, IAuditLogService auditLogService)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(auditLogService);
         _context = context;
+        _auditLogService = auditLogService;
     }
 
     /// <inheritdoc />
@@ -289,6 +293,19 @@ public class QuoteSubmissionService : IQuoteSubmissionService
         }
 
         await _context.SaveChangesAsync();
+
+        await _auditLogService.LogRfqActionAsync(
+            request.RfqId,
+            supplierUserId,
+            isNewQuote ? "QuoteSubmitted" : "QuoteUpdated",
+            "Quote",
+            quote.Id,
+            oldValue: null,
+            newValue: $"{{\"totalAmount\":{quote.TotalAmount},\"status\":\"{quote.Status}\"}}",
+            details: isNewQuote
+                ? $"Supplier submitted quote {quote.Id} for RFQ {invitation.Rfq.ReferenceNumber}."
+                : $"Supplier updated quote {quote.Id} for RFQ {invitation.Rfq.ReferenceNumber}.");
+
         return QuoteSaveResponse.Success(quote.Id);
     }
 }

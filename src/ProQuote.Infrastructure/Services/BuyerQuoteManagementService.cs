@@ -14,15 +14,19 @@ namespace ProQuote.Infrastructure.Services;
 public class BuyerQuoteManagementService : IBuyerQuoteManagementService
 {
     private readonly AppDbContext _context;
+    private readonly IAuditLogService _auditLogService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BuyerQuoteManagementService"/> class.
     /// </summary>
     /// <param name="context">Database context.</param>
-    public BuyerQuoteManagementService(AppDbContext context)
+    /// <param name="auditLogService">Audit log service.</param>
+    public BuyerQuoteManagementService(AppDbContext context, IAuditLogService auditLogService)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(auditLogService);
         _context = context;
+        _auditLogService = auditLogService;
     }
 
     /// <inheritdoc />
@@ -228,6 +232,17 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
         }
 
         await _context.SaveChangesAsync();
+
+        await _auditLogService.LogRfqActionAsync(
+            rfq.Id,
+            buyerUserId,
+            "QuoteAwarded",
+            "Quote",
+            selectedQuote.Id,
+            oldValue: null,
+            newValue: $"{{\"awardedQuoteId\":\"{selectedQuote.Id}\"}}",
+            details: $"Awarded quote {selectedQuote.Id} for RFQ {rfq.ReferenceNumber}; rejected {comparableQuotes.Count - 1} other quote(s).");
+
         return AwardQuoteResponse.Success(rfqId, selectedQuote.Id);
     }
 }

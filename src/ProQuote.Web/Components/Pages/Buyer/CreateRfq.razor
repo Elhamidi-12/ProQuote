@@ -8,6 +8,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.EntityFrameworkCore
 @inject IUnitOfWork UnitOfWork
+@inject IAuditLogService AuditLogService
 @inject ProQuote.Infrastructure.Data.AppDbContext DbContext
 @inject IWebHostEnvironment HostEnvironment
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -338,12 +339,28 @@ else
             {
                 await UpdateExistingRfqAsync(_editingRfqId.Value, _buyerId.Value);
                 await SavePendingDocumentsAsync(_editingRfqId.Value, _buyerId.Value);
+
+                await AuditLogService.LogRfqActionAsync(
+                    _editingRfqId.Value,
+                    _buyerId.Value,
+                    "RfqUpdated",
+                    "Rfq",
+                    _editingRfqId.Value,
+                    details: _publishOnSave ? "RFQ updated and published by buyer." : "RFQ draft updated by buyer.");
                 ToastService.ShowSuccess(_publishOnSave ? "RFQ published successfully." : "RFQ draft updated.");
             }
             else
             {
                 Guid newRfqId = await CreateRfqAsync(_buyerId.Value);
                 await SavePendingDocumentsAsync(newRfqId, _buyerId.Value);
+
+                await AuditLogService.LogRfqActionAsync(
+                    newRfqId,
+                    _buyerId.Value,
+                    "RfqCreated",
+                    "Rfq",
+                    newRfqId,
+                    details: _publishOnSave ? "RFQ created and published by buyer." : "RFQ draft created by buyer.");
                 ToastService.ShowSuccess(_publishOnSave ? "RFQ created and published." : "RFQ draft created.");
             }
 
@@ -514,6 +531,14 @@ else
             await DbContext.RfqDocuments.AddRangeAsync(newDocuments);
             await DbContext.SaveChangesAsync();
             _existingDocuments.AddRange(newDocuments);
+
+            await AuditLogService.LogRfqActionAsync(
+                rfqId,
+                buyerId,
+                "RfqDocumentsUploaded",
+                "RfqDocument",
+                entityId: null,
+                details: $"Uploaded {newDocuments.Count} document(s): {string.Join(", ", newDocuments.Select(d => d.FileName))}.");
         }
 
         _pendingUploads.Clear();
@@ -544,6 +569,17 @@ else
             .Where(d => d.Id != documentId)
             .OrderBy(d => d.DisplayOrder)
             .ToList();
+
+        if (_buyerId.HasValue)
+        {
+            await AuditLogService.LogRfqActionAsync(
+                existing.RfqId,
+                _buyerId.Value,
+                "RfqDocumentRemoved",
+                "RfqDocument",
+                existing.Id,
+                details: $"Removed RFQ document {existing.FileName}.");
+        }
 
         ToastService.ShowSuccess("Document removed.");
     }
