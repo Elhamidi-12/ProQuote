@@ -2,6 +2,12 @@
 @rendermode InteractiveServer
 @layout SupplierLayout
 @attribute [Authorize(Roles = ApplicationRoles.Supplier)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.DTOs.Quotes
+@inject IQuoteSubmissionService QuoteSubmissionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
 
 <PageTitle>Supplier Dashboard - ProQuote</PageTitle>
 
@@ -17,28 +23,84 @@
 
     <PqCard>
         <h2 class="pq-card-title">New RFQ Invitations</h2>
-        <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
-            @foreach (RfqInvitationItem invitation in _newInvitations)
+        @if (_isLoading)
+        {
+            <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">Loading invitations...</p>
+        }
+        else if (_newInvitations.Count == 0)
+        {
+            <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No new invitations.</p>
+        }
+        else
+        {
+            <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
+            @foreach (SupplierInvitationItemDto invitation in _newInvitations)
             {
-                <li class="pq-body-sm">@invitation.ReferenceNumber - @invitation.Title (Due: @invitation.Deadline.ToString("MMM dd, yyyy"))</li>
+                <li class="pq-body-sm">@invitation.ReferenceNumber - @invitation.Title (Due: @invitation.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy"))</li>
             }
-        </ul>
+            </ul>
+        }
     </PqCard>
 </div>
 
 @code {
     private DashboardStats _stats = new();
-    private List<RfqInvitationItem> _newInvitations = [];
+    private bool _isLoading = true;
+    private List<SupplierInvitationItemDto> _newInvitations = [];
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _stats = new DashboardStats { NewInvitations = 3, PendingQuotes = 2, SubmittedQuotes = 8, WonContracts = 5 };
-        _newInvitations =
-        [
-            new RfqInvitationItem { ReferenceNumber = "RFQ-2025-00045", Title = "Office IT Equipment Procurement", Deadline = DateTime.UtcNow.AddDays(7) },
-            new RfqInvitationItem { ReferenceNumber = "RFQ-2025-00044", Title = "Software Development Services", Deadline = DateTime.UtcNow.AddDays(10) },
-            new RfqInvitationItem { ReferenceNumber = "RFQ-2025-00043", Title = "Cloud Infrastructure Setup", Deadline = DateTime.UtcNow.AddDays(14) }
-        ];
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            Guid? userId = await GetCurrentUserIdAsync();
+            if (!userId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            IReadOnlyList<SupplierInvitationItemDto> invitations =
+                await QuoteSubmissionService.GetSupplierInvitationsAsync(userId.Value);
+            IReadOnlyList<SupplierQuoteListItemDto> quotes =
+                await QuoteSubmissionService.GetSupplierQuotesAsync(userId.Value);
+
+            _newInvitations = invitations
+                .Where(i =>
+                    (i.Status == Domain.Enums.InvitationStatus.Sent || i.Status == Domain.Enums.InvitationStatus.Viewed) &&
+                    !i.HasQuote &&
+                    i.SubmissionDeadline > DateTime.UtcNow)
+                .OrderBy(i => i.SubmissionDeadline)
+                .Take(5)
+                .ToList();
+
+            _stats = new DashboardStats
+            {
+                NewInvitations = _newInvitations.Count,
+                PendingQuotes = invitations.Count(i =>
+                    (i.Status == Domain.Enums.InvitationStatus.Sent || i.Status == Domain.Enums.InvitationStatus.Viewed) &&
+                    !i.HasQuote &&
+                    i.SubmissionDeadline > DateTime.UtcNow),
+                SubmittedQuotes = quotes.Count(q =>
+                    q.Status == Domain.Enums.QuoteStatus.Submitted ||
+                    q.Status == Domain.Enums.QuoteStatus.Awarded ||
+                    q.Status == Domain.Enums.QuoteStatus.Rejected),
+                WonContracts = quotes.Count(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded)
+            };
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load dashboard");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private class DashboardStats
@@ -49,10 +111,10 @@
         public int WonContracts { get; set; }
     }
 
-    private class RfqInvitationItem
+    private async Task<Guid?> GetCurrentUserIdAsync()
     {
-        public string ReferenceNumber { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public DateTime Deadline { get; set; }
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
     }
 }
