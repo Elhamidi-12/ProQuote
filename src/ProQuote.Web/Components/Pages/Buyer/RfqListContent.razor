@@ -1,0 +1,113 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ToastService ToastService
+
+<h1 class="pq-section-title">@Title</h1>
+<PqCard>
+    @if (_isLoading)
+    {
+        <p class="pq-body-sm">Loading RFQs...</p>
+    }
+    else if (_rfqs.Count == 0)
+    {
+        <p class="pq-body-sm">No RFQs found.</p>
+    }
+    else
+    {
+        <PqTable Headers="_headers">
+            @foreach (Domain.Entities.Rfq rfq in _rfqs)
+            {
+                <tr>
+                    <td>@rfq.ReferenceNumber</td>
+                    <td>@rfq.Title</td>
+                    <td>@(rfq.Category?.Name ?? "-")</td>
+                    <td>@rfq.SubmissionDeadline.ToString("MMM dd, yyyy")</td>
+                    <td><PqBadge Variant="@GetStatusBadgeVariant(rfq.Status)">@rfq.Status</PqBadge></td>
+                    <td>
+                        <div style="display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
+                            @if (rfq.Status == Domain.Enums.RfqStatus.Draft)
+                            {
+                                <a href="@($"/buyer/rfqs/{rfq.Id}/edit")">
+                                    <PqButton Variant="secondary" Size="sm">Edit</PqButton>
+                                </a>
+                            }
+                            <a href="@($"/buyer/messages?rfqId={rfq.Id}")">
+                                <PqButton Variant="ghost" Size="sm">Messages</PqButton>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </PqTable>
+    }
+</PqCard>
+
+@code {
+    [Parameter] public string Title { get; set; } = "RFQs";
+    [Parameter] public Domain.Enums.RfqStatus? StatusFilter { get; set; }
+
+    private bool _isLoading = true;
+    private List<Domain.Entities.Rfq> _rfqs = [];
+
+    private readonly List<PqTable.TableColumn> _headers =
+    [
+        new() { Label = "Reference", Field = "reference" },
+        new() { Label = "Title", Field = "title" },
+        new() { Label = "Category", Field = "category" },
+        new() { Label = "Deadline", Field = "deadline" },
+        new() { Label = "Status", Field = "status" },
+        new() { Label = "Actions", Field = "actions", Width = "210px" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRfqsAsync();
+    }
+
+    private async Task LoadRfqsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            string? userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdClaim, out Guid buyerId))
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            IReadOnlyList<Domain.Entities.Rfq> rfqs = await UnitOfWork.Rfqs.GetByBuyerIdAsync(buyerId);
+            _rfqs = StatusFilter.HasValue
+                ? rfqs.Where(r => r.Status == StatusFilter.Value).ToList()
+                : rfqs.ToList();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load RFQs");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetStatusBadgeVariant(Domain.Enums.RfqStatus status)
+    {
+        return status switch
+        {
+            Domain.Enums.RfqStatus.Draft => "draft",
+            Domain.Enums.RfqStatus.Published => "published",
+            Domain.Enums.RfqStatus.Awarded => "awarded",
+            Domain.Enums.RfqStatus.Closed => "closed",
+            Domain.Enums.RfqStatus.Cancelled => "cancelled",
+            Domain.Enums.RfqStatus.Expired => "expired",
+            Domain.Enums.RfqStatus.QuotesReceived => "pending",
+            Domain.Enums.RfqStatus.UnderEvaluation => "pending",
+            _ => "default"
+        };
+    }
+}

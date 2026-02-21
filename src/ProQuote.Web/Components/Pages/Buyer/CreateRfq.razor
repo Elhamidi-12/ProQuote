@@ -1,11 +1,462 @@
 @page "/buyer/rfqs/create"
+@page "/buyer/rfqs/{RfqId:guid}/edit"
 @rendermode InteractiveServer
 @layout BuyerLayout
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject ToastService ToastService
 
-<PageTitle>Create RFQ - ProQuote</PageTitle>
+<PageTitle>@(IsEditMode ? "Edit RFQ" : "Create RFQ") - ProQuote</PageTitle>
 
-<h1 class="pq-section-title">Create RFQ</h1>
-<PqCard>
-    <p class="pq-body-sm">This page is available and ready for RFQ creation.</p>
-</PqCard>
+<h1 class="pq-section-title">@(IsEditMode ? "Edit RFQ" : "Create RFQ")</h1>
+
+@if (_isLoading)
+{
+    <PqCard>
+        <p class="pq-body-sm">Loading RFQ form...</p>
+    </PqCard>
+}
+else
+{
+    <div class="pq-flex pq-flex-col pq-gap-4">
+        <PqCard>
+            <h2 class="pq-card-title">Details</h2>
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                @if (!string.IsNullOrWhiteSpace(_referenceNumber))
+                {
+                    <PqInput Label="Reference Number" Value="@_referenceNumber" Disabled="true" />
+                }
+
+                <PqInput Label="Title"
+                         Value="@_form.Title"
+                         ValueChanged="@(v => _form.Title = v ?? string.Empty)"
+                         Error="@_errors.GetValueOrDefault(nameof(_form.Title))"
+                         Disabled="_isSaving"
+                         Required="true" />
+
+                <PqTextarea Label="Description"
+                            Value="@_form.Description"
+                            ValueChanged="@(v => _form.Description = v)"
+                            Disabled="_isSaving" />
+
+                <PqSelect Label="Category"
+                          Value="@_form.CategoryId"
+                          ValueChanged="@(v => _form.CategoryId = v ?? string.Empty)"
+                          Options="_categoryOptions"
+                          Placeholder="Select category"
+                          Disabled="_isSaving" />
+                @if (_errors.TryGetValue(nameof(_form.CategoryId), out string? categoryError))
+                {
+                    <p class="pq-caption" style="color:var(--pq-danger-text)">@categoryError</p>
+                }
+
+                <PqInput Label="Currency"
+                         Value="@_form.Currency"
+                         ValueChanged="@(v => _form.Currency = v ?? "USD")"
+                         Disabled="_isSaving"
+                         Required="true" />
+
+                <PqInput Label="Submission Deadline (UTC)"
+                         Type="datetime-local"
+                         Value="@_form.SubmissionDeadline"
+                         ValueChanged="@(v => _form.SubmissionDeadline = v ?? string.Empty)"
+                         Error="@_errors.GetValueOrDefault(nameof(_form.SubmissionDeadline))"
+                         Disabled="_isSaving"
+                         Required="true" />
+            </div>
+        </PqCard>
+
+        <PqCard>
+            <div class="pq-flex pq-justify-between pq-items-center">
+                <h2 class="pq-card-title">Line Items</h2>
+                <PqButton Variant="secondary" Size="sm" OnClick="AddLineItem" Disabled="_isSaving">Add Item</PqButton>
+            </div>
+
+            @if (_lineItems.Count == 0)
+            {
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No line items yet.</p>
+            }
+            else
+            {
+                <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                    @for (int i = 0; i < _lineItems.Count; i++)
+                    {
+                        int index = i;
+                        LineItemForm item = _lineItems[index];
+                        <PqCard>
+                            <div class="pq-flex pq-justify-between pq-items-center">
+                                <h3 class="pq-body-sm">Item @(index + 1)</h3>
+                                <PqButton Variant="danger" Size="sm" OnClick="@(() => RemoveLineItem(index))" Disabled="_isSaving">Remove</PqButton>
+                            </div>
+                            <div class="pq-flex pq-flex-col pq-gap-2" style="margin-top:var(--pq-space-2);">
+                                <PqInput Label="Name" Value="@item.Name" ValueChanged="@(v => item.Name = v ?? string.Empty)" Disabled="_isSaving" Required="true" />
+                                <PqInput Label="Description" Value="@item.Description" ValueChanged="@(v => item.Description = v)" Disabled="_isSaving" />
+                                <div class="pq-flex pq-gap-2" style="flex-wrap:wrap;">
+                                    <div style="min-width:180px;flex:1;">
+                                        <PqInput Label="Quantity" Type="number" Value="@item.Quantity" ValueChanged="@(v => item.Quantity = v ?? "0")" Disabled="_isSaving" />
+                                    </div>
+                                    <div style="min-width:180px;flex:1;">
+                                        <PqInput Label="Unit" Value="@item.UnitOfMeasure" ValueChanged="@(v => item.UnitOfMeasure = v ?? string.Empty)" Disabled="_isSaving" />
+                                    </div>
+                                </div>
+                                <PqTextarea Label="Technical Specifications" Value="@item.TechnicalSpecs" ValueChanged="@(v => item.TechnicalSpecs = v)" Disabled="_isSaving" />
+                            </div>
+                        </PqCard>
+                    }
+                </div>
+            }
+
+            @if (_errors.TryGetValue("LineItems", out string? lineItemError))
+            {
+                <p class="pq-caption" style="color:var(--pq-danger-text);margin-top:var(--pq-space-2);">@lineItemError</p>
+            }
+        </PqCard>
+
+        <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;flex-wrap:wrap;">
+            <a href="/buyer/rfqs"><PqButton Variant="ghost">Cancel</PqButton></a>
+            <PqButton Variant="secondary" OnClick="SaveDraftAsync" Loading="@(_isSaving && !_publishOnSave)">Save Draft</PqButton>
+            <PqButton Variant="primary" OnClick="PublishAsync" Loading="@(_isSaving && _publishOnSave)">Save & Publish</PqButton>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? RfqId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _publishOnSave;
+    private Guid? _buyerId;
+    private Guid? _editingRfqId;
+    private string? _referenceNumber;
+
+    private RfqForm _form = new();
+    private List<LineItemForm> _lineItems = [];
+    private List<PqSelect.SelectOption> _categoryOptions = [];
+    private Dictionary<string, string> _errors = [];
+
+    private bool IsEditMode => RfqId.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _buyerId = await GetCurrentBuyerIdAsync();
+            if (!_buyerId.HasValue)
+            {
+                ToastService.ShowError("Unable to resolve current user.");
+                return;
+            }
+
+            await LoadCategoriesAsync();
+            AddLineItem();
+
+            if (IsEditMode)
+            {
+                await LoadExistingRfqAsync(RfqId!.Value);
+            }
+            else
+            {
+                _referenceNumber = await UnitOfWork.Rfqs.GenerateReferenceNumberAsync();
+                _form.SubmissionDeadline = DateTime.UtcNow.AddDays(7).ToString("yyyy-MM-ddTHH:mm");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load RFQ form");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        IReadOnlyList<Domain.Entities.Category> categories = await UnitOfWork.Categories.GetActiveCategoriesAsync();
+        _categoryOptions = categories
+            .OrderBy(c => c.Name)
+            .Select(c => new PqSelect.SelectOption
+            {
+                Value = c.Id.ToString(),
+                Label = c.Name
+            })
+            .ToList();
+    }
+
+    private async Task LoadExistingRfqAsync(Guid rfqId)
+    {
+        Domain.Entities.Rfq? rfq = await UnitOfWork.Rfqs.GetWithDetailsAsync(rfqId);
+        if (rfq == null || rfq.BuyerId != _buyerId || !rfq.CanBeEdited())
+        {
+            ToastService.ShowError("RFQ not found or cannot be edited.");
+            NavigationManager.NavigateTo("/buyer/rfqs");
+            return;
+        }
+
+        _editingRfqId = rfq.Id;
+        _referenceNumber = rfq.ReferenceNumber;
+        _form = new RfqForm
+        {
+            Title = rfq.Title,
+            Description = rfq.Description,
+            CategoryId = rfq.CategoryId.ToString(),
+            Currency = rfq.Currency,
+            SubmissionDeadline = rfq.SubmissionDeadline.ToString("yyyy-MM-ddTHH:mm")
+        };
+
+        _lineItems = rfq.LineItems
+            .OrderBy(li => li.DisplayOrder)
+            .Select(li => new LineItemForm
+            {
+                Name = li.Name,
+                Description = li.Description,
+                Quantity = li.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                UnitOfMeasure = li.UnitOfMeasure,
+                TechnicalSpecs = li.TechnicalSpecs
+            })
+            .ToList();
+
+        if (_lineItems.Count == 0)
+        {
+            AddLineItem();
+        }
+    }
+
+    private void AddLineItem()
+    {
+        _lineItems.Add(new LineItemForm
+        {
+            Quantity = "1",
+            UnitOfMeasure = "pcs"
+        });
+    }
+
+    private void RemoveLineItem(int index)
+    {
+        if (index >= 0 && index < _lineItems.Count)
+        {
+            _lineItems.RemoveAt(index);
+        }
+    }
+
+    private Task SaveDraftAsync()
+    {
+        _publishOnSave = false;
+        return SaveAsync();
+    }
+
+    private Task PublishAsync()
+    {
+        _publishOnSave = true;
+        return SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!_buyerId.HasValue)
+        {
+            ToastService.ShowError("Unable to resolve current user.");
+            return;
+        }
+
+        _errors = ValidateForm(_publishOnSave);
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            if (_editingRfqId.HasValue)
+            {
+                await UpdateExistingRfqAsync(_editingRfqId.Value, _buyerId.Value);
+                ToastService.ShowSuccess(_publishOnSave ? "RFQ published successfully." : "RFQ draft updated.");
+            }
+            else
+            {
+                await CreateRfqAsync(_buyerId.Value);
+                ToastService.ShowSuccess(_publishOnSave ? "RFQ created and published." : "RFQ draft created.");
+            }
+
+            NavigationManager.NavigateTo("/buyer/rfqs");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to save RFQ");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task CreateRfqAsync(Guid buyerId)
+    {
+        string reference = _referenceNumber ?? await UnitOfWork.Rfqs.GenerateReferenceNumberAsync();
+        DateTime submissionDeadline = DateTime.Parse(_form.SubmissionDeadline, null, System.Globalization.DateTimeStyles.AssumeUniversal).ToUniversalTime();
+        Guid categoryId = Guid.Parse(_form.CategoryId);
+
+        Domain.Entities.Rfq rfq = new()
+        {
+            Id = Guid.NewGuid(),
+            ReferenceNumber = reference,
+            Title = _form.Title.Trim(),
+            Description = string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description.Trim(),
+            CategoryId = categoryId,
+            Currency = _form.Currency.Trim().ToUpperInvariant(),
+            SubmissionDeadline = submissionDeadline,
+            Status = _publishOnSave ? Domain.Enums.RfqStatus.Published : Domain.Enums.RfqStatus.Draft,
+            BuyerId = buyerId,
+            PublishedAt = _publishOnSave ? DateTime.UtcNow : null,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        foreach (LineItemForm item in _lineItems.Where(IsLineItemFilled).Select((x, i) => x with { DisplayOrder = i + 1 }))
+        {
+            rfq.LineItems.Add(new Domain.Entities.LineItem
+            {
+                Id = Guid.NewGuid(),
+                RfqId = rfq.Id,
+                Name = item.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(item.Description) ? null : item.Description.Trim(),
+                Quantity = ParseQuantity(item.Quantity),
+                UnitOfMeasure = item.UnitOfMeasure.Trim(),
+                TechnicalSpecs = string.IsNullOrWhiteSpace(item.TechnicalSpecs) ? null : item.TechnicalSpecs.Trim(),
+                DisplayOrder = item.DisplayOrder,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await UnitOfWork.Rfqs.AddAsync(rfq);
+        await UnitOfWork.SaveChangesAsync();
+    }
+
+    private async Task UpdateExistingRfqAsync(Guid rfqId, Guid buyerId)
+    {
+        Domain.Entities.Rfq? rfq = await UnitOfWork.Rfqs.GetWithDetailsAsync(rfqId);
+        if (rfq == null || rfq.BuyerId != buyerId || !rfq.CanBeEdited())
+        {
+            throw new InvalidOperationException("RFQ not found or cannot be edited.");
+        }
+
+        rfq.Title = _form.Title.Trim();
+        rfq.Description = string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description.Trim();
+        rfq.CategoryId = Guid.Parse(_form.CategoryId);
+        rfq.Currency = _form.Currency.Trim().ToUpperInvariant();
+        rfq.SubmissionDeadline = DateTime.Parse(_form.SubmissionDeadline, null, System.Globalization.DateTimeStyles.AssumeUniversal).ToUniversalTime();
+        rfq.Status = _publishOnSave ? Domain.Enums.RfqStatus.Published : Domain.Enums.RfqStatus.Draft;
+        rfq.PublishedAt ??= _publishOnSave ? DateTime.UtcNow : null;
+
+        rfq.LineItems.Clear();
+        foreach (LineItemForm item in _lineItems.Where(IsLineItemFilled).Select((x, i) => x with { DisplayOrder = i + 1 }))
+        {
+            rfq.LineItems.Add(new Domain.Entities.LineItem
+            {
+                Id = Guid.NewGuid(),
+                RfqId = rfq.Id,
+                Name = item.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(item.Description) ? null : item.Description.Trim(),
+                Quantity = ParseQuantity(item.Quantity),
+                UnitOfMeasure = item.UnitOfMeasure.Trim(),
+                TechnicalSpecs = string.IsNullOrWhiteSpace(item.TechnicalSpecs) ? null : item.TechnicalSpecs.Trim(),
+                DisplayOrder = item.DisplayOrder,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        UnitOfWork.Rfqs.Update(rfq);
+        await UnitOfWork.SaveChangesAsync();
+    }
+
+    private Dictionary<string, string> ValidateForm(bool requireLineItems)
+    {
+        Dictionary<string, string> errors = [];
+
+        if (string.IsNullOrWhiteSpace(_form.Title))
+        {
+            errors[nameof(_form.Title)] = "Title is required.";
+        }
+
+        if (!Guid.TryParse(_form.CategoryId, out _))
+        {
+            errors[nameof(_form.CategoryId)] = "Category is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(_form.SubmissionDeadline) ||
+            !DateTime.TryParse(_form.SubmissionDeadline, out DateTime parsedDeadline) ||
+            parsedDeadline.ToUniversalTime() <= DateTime.UtcNow)
+        {
+            errors[nameof(_form.SubmissionDeadline)] = "Submission deadline must be in the future.";
+        }
+
+        List<LineItemForm> validLineItems = _lineItems.Where(IsLineItemFilled).ToList();
+        if (requireLineItems && validLineItems.Count == 0)
+        {
+            errors["LineItems"] = "Add at least one valid line item before publishing.";
+        }
+        else if (validLineItems.Any(i => ParseQuantity(i.Quantity) <= 0))
+        {
+            errors["LineItems"] = "All line item quantities must be greater than zero.";
+        }
+
+        return errors;
+    }
+
+    private static bool IsLineItemFilled(LineItemForm item)
+    {
+        return !string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(item.UnitOfMeasure);
+    }
+
+    private static decimal ParseQuantity(string? value)
+    {
+        if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out decimal parsed))
+        {
+            return parsed;
+        }
+
+        if (decimal.TryParse(value, out parsed))
+        {
+            return parsed;
+        }
+
+        return 0m;
+    }
+
+    private async Task<Guid?> GetCurrentBuyerIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out Guid parsed) ? parsed : null;
+    }
+
+    private sealed class RfqForm
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string CategoryId { get; set; } = string.Empty;
+        public string Currency { get; set; } = "USD";
+        public string SubmissionDeadline { get; set; } = string.Empty;
+    }
+
+    private sealed record LineItemForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string Quantity { get; set; } = "1";
+        public string UnitOfMeasure { get; set; } = string.Empty;
+        public string? TechnicalSpecs { get; set; }
+        public int DisplayOrder { get; set; }
+    }
+}
