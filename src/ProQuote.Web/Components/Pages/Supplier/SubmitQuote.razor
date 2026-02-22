@@ -66,6 +66,61 @@ else
         </PqCard>
 
         <PqCard>
+            <div class="pq-flex pq-justify-between pq-items-center" style="flex-wrap:wrap;gap:var(--pq-space-2);">
+                <h2 class="pq-card-title">Quote Quality Scorecard</h2>
+                <PqBadge Variant="@GetQualityBadgeVariant(QualityScorecard.OverallScore)">
+                    @QualityScorecard.OverallScore%
+                </PqBadge>
+            </div>
+            <p class="pq-body-sm" style="margin-top:var(--pq-space-1);">
+                Live quality feedback based on completeness, lead time, and commercial readiness.
+            </p>
+
+            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-3);">
+                <div>
+                    <div class="pq-flex pq-justify-between pq-items-center">
+                        <span class="pq-body-sm">Line-item completeness</span>
+                        <span class="pq-body-sm">@QualityScorecard.CompletenessScore%</span>
+                    </div>
+                    <PqProgressBar Value="@QualityScorecard.CompletenessScore" Variant="@GetQualityBarVariant(QualityScorecard.CompletenessScore)" />
+                </div>
+                <div>
+                    <div class="pq-flex pq-justify-between pq-items-center">
+                        <span class="pq-body-sm">Lead-time competitiveness</span>
+                        <span class="pq-body-sm">@QualityScorecard.LeadTimeScore%</span>
+                    </div>
+                    <PqProgressBar Value="@QualityScorecard.LeadTimeScore" Variant="@GetQualityBarVariant(QualityScorecard.LeadTimeScore)" />
+                </div>
+                <div>
+                    <div class="pq-flex pq-justify-between pq-items-center">
+                        <span class="pq-body-sm">Commercial readiness</span>
+                        <span class="pq-body-sm">@QualityScorecard.CommercialScore%</span>
+                    </div>
+                    <PqProgressBar Value="@QualityScorecard.CommercialScore" Variant="@GetQualityBarVariant(QualityScorecard.CommercialScore)" />
+                </div>
+            </div>
+
+            @if (QualityScorecard.Suggestions.Count > 0)
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <p class="pq-body-sm"><strong>Fix suggestions</strong></p>
+                    <ul class="pq-body-sm" style="margin-top:var(--pq-space-2);padding-left:1rem;">
+                        @foreach (string suggestion in QualityScorecard.Suggestions)
+                        {
+                            <li>@suggestion</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <div style="margin-top:var(--pq-space-3);">
+                    <PqBadge Variant="awarded">Great shape - this quote is ready to submit.</PqBadge>
+                </div>
+            }
+        </PqCard>
+
+        <PqCard>
             <h2 class="pq-card-title">Line Item Pricing</h2>
             <div style="margin-top:var(--pq-space-3);">
                 <PqTable Headers="_lineItemHeaders">
@@ -158,6 +213,7 @@ else
     private List<PendingUpload> _pendingUploads = [];
     private List<Domain.Entities.QuoteDocument> _existingDocuments = [];
     private const long MaxUploadBytes = 10 * 1024 * 1024;
+    private QuoteQualityScorecard QualityScorecard => BuildQualityScorecard();
 
     private readonly List<PqTable.TableColumn> _lineItemHeaders =
     [
@@ -479,6 +535,139 @@ else
     {
         return Path.Combine(GetPrivateUploadRoot(), "quotes", quoteId.ToString("N"));
     }
+
+    private QuoteQualityScorecard BuildQualityScorecard()
+    {
+        if (_editor == null)
+        {
+            return new QuoteQualityScorecard(
+                0,
+                0,
+                0,
+                0,
+                new List<string> { "Complete quote details to see quality score." });
+        }
+
+        int totalLineItems = _editor.LineItems.Count;
+        int quotedLineItems = _editor.LineItems.Count(li => ParseDecimal(GetUnitPrice(li.LineItemId)) > 0m);
+        int completenessScore = totalLineItems == 0 ? 0 : (int)Math.Round(quotedLineItems * 100d / totalLineItems);
+
+        int leadDays = int.TryParse(_leadTimeDays, out int parsedLeadTime) ? parsedLeadTime : -1;
+        int leadTimeScore;
+        if (leadDays < 0)
+        {
+            leadTimeScore = 0;
+        }
+        else if (leadDays <= 7)
+        {
+            leadTimeScore = 100;
+        }
+        else if (leadDays <= 14)
+        {
+            leadTimeScore = 85;
+        }
+        else if (leadDays <= 21)
+        {
+            leadTimeScore = 70;
+        }
+        else if (leadDays <= 30)
+        {
+            leadTimeScore = 55;
+        }
+        else if (leadDays <= 45)
+        {
+            leadTimeScore = 40;
+        }
+        else
+        {
+            leadTimeScore = 25;
+        }
+
+        bool hasPaymentTerms = !string.IsNullOrWhiteSpace(_paymentTerms);
+        bool hasAtLeastOneDocument = _existingDocuments.Count + _pendingUploads.Count > 0;
+        bool hasValidUntil = DateTime.TryParse(_validUntil, out DateTime validUntil);
+        bool validUntilAfterDeadline = hasValidUntil && validUntil.ToUniversalTime() >= _editor.SubmissionDeadline;
+
+        int commercialScore = 0;
+        commercialScore += hasPaymentTerms ? 40 : 0;
+        commercialScore += hasAtLeastOneDocument ? 30 : 0;
+        commercialScore += validUntilAfterDeadline ? 30 : 0;
+
+        int overallScore = (int)Math.Round((completenessScore * 0.5) + (leadTimeScore * 0.25) + (commercialScore * 0.25));
+
+        List<string> suggestions = new();
+        if (quotedLineItems < totalLineItems)
+        {
+            suggestions.Add($"Quote all required line items ({quotedLineItems}/{totalLineItems} currently priced).");
+        }
+
+        if (leadDays < 0)
+        {
+            suggestions.Add("Enter a valid non-negative lead time.");
+        }
+        else if (leadDays > 30)
+        {
+            suggestions.Add("Consider reducing lead time; over 30 days is usually less competitive.");
+        }
+
+        if (!hasPaymentTerms)
+        {
+            suggestions.Add("Add payment terms to improve commercial clarity.");
+        }
+
+        if (!hasAtLeastOneDocument)
+        {
+            suggestions.Add("Attach at least one supporting document (proposal/spec sheet).");
+        }
+
+        if (!hasValidUntil)
+        {
+            suggestions.Add("Set a valid quote expiration date.");
+        }
+        else if (!validUntilAfterDeadline)
+        {
+            suggestions.Add("Set 'Valid Until' on or after RFQ deadline.");
+        }
+
+        return new QuoteQualityScorecard(overallScore, completenessScore, leadTimeScore, commercialScore, suggestions);
+    }
+
+    private static string GetQualityBarVariant(int score)
+    {
+        if (score >= 85)
+        {
+            return "success";
+        }
+
+        if (score >= 60)
+        {
+            return "warning";
+        }
+
+        return "danger";
+    }
+
+    private static string GetQualityBadgeVariant(int score)
+    {
+        if (score >= 85)
+        {
+            return "awarded";
+        }
+
+        if (score >= 60)
+        {
+            return "pending";
+        }
+
+        return "expired";
+    }
+
+    private sealed record QuoteQualityScorecard(
+        int OverallScore,
+        int CompletenessScore,
+        int LeadTimeScore,
+        int CommercialScore,
+        List<string> Suggestions);
 
     private sealed record PendingUpload(IBrowserFile File);
 }
