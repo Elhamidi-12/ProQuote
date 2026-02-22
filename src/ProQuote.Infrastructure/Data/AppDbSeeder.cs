@@ -60,7 +60,14 @@ public partial class AppDbSeeder
     {
         try
         {
-            await _context.Database.MigrateAsync();
+            if (_context.Database.IsRelational())
+            {
+                await _context.Database.MigrateAsync();
+            }
+            else
+            {
+                await _context.Database.EnsureCreatedAsync();
+            }
 
             await SeedRolesAsync();
             if (includeDefaultAdmin)

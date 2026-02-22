@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using ProQuote.Infrastructure.Data;
 
@@ -11,8 +13,6 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _databaseName = $"ProQuoteIntegration_{Guid.NewGuid():N}";
     private const string JwtSecret = "integration-tests-secret-key-32-characters-minimum!";
-    private string ConnectionString =>
-        $"Server=(localdb)\\mssqllocaldb;Database={_databaseName};Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -33,21 +33,31 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 ["JwtSettings:Audience"] = "ProQuote.Tests.Client",
                 ["JwtSettings:AccessTokenExpirationMinutes"] = "60",
                 ["JwtSettings:RefreshTokenExpirationDays"] = "7",
-                ["ConnectionStrings:DefaultConnection"] = ConnectionString
+                ["ConnectionStrings:DefaultConnection"] = "UseInMemoryForTests"
             };
 
             config.AddInMemoryCollection(settings);
+        });
+
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<DbContextOptions<AppDbContext>>();
+            services.RemoveAll<AppDbContext>();
+            services.RemoveAll<IDbContextFactory<AppDbContext>>();
+
+            services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+            services.AddDbContextFactory<AppDbContext>(
+                options => options.UseInMemoryDatabase(_databaseName),
+                ServiceLifetime.Scoped);
         });
     }
 
     protected override void Dispose(bool disposing)
     {
-        base.Dispose(disposing);
-
         if (disposing)
         {
             DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-                .UseSqlServer(ConnectionString)
+                .UseInMemoryDatabase(_databaseName)
                 .Options;
 
             using AppDbContext context = new(options);
@@ -57,5 +67,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("JwtSettings__SecretKey", null);
         Environment.SetEnvironmentVariable("JwtSettings__Issuer", null);
         Environment.SetEnvironmentVariable("JwtSettings__Audience", null);
+
+        base.Dispose(disposing);
     }
 }
