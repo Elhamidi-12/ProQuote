@@ -6,6 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
 using ProQuote.Application.Common;
+using ProQuote.Application.UseCases.AdminRfqs.CancelRfq;
+using ProQuote.Application.UseCases.AdminRfqs.CloseRfq;
+using ProQuote.Application.UseCases.AdminRfqs.MoveToEvaluation;
+using ProQuote.Application.UseCases.AdminSuppliers.ReviewSupplier;
+using ProQuote.Application.UseCases.BuyerRfqs.AwardQuote;
+using ProQuote.Application.UseCases.BuyerRfqs.Invitations;
+using ProQuote.Application.UseCases.BuyerRfqs.PublishRfq;
 using ProQuote.Infrastructure;
 using ProQuote.UI.Services;
 using ProQuote.Web.Auth;
@@ -29,6 +36,13 @@ public static class ServiceRegistrationExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddInfrastructure(configuration);
+        services.AddScoped<ICancelAdminRfqUseCase, CancelAdminRfqUseCase>();
+        services.AddScoped<ICloseAdminRfqUseCase, CloseAdminRfqUseCase>();
+        services.AddScoped<IMoveAdminRfqToEvaluationUseCase, MoveAdminRfqToEvaluationUseCase>();
+        services.AddScoped<IReviewSupplierRegistrationUseCase, ReviewSupplierRegistrationUseCase>();
+        services.AddScoped<IAwardBuyerQuoteUseCase, AwardBuyerQuoteUseCase>();
+        services.AddScoped<IPublishBuyerRfqUseCase, PublishBuyerRfqUseCase>();
+        services.AddScoped<ISendRfqInvitationsUseCase, SendRfqInvitationsUseCase>();
 
         services.AddScoped<CustomAuthStateProvider>();
         services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());

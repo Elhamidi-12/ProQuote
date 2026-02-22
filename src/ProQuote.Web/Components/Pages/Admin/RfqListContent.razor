@@ -1,9 +1,17 @@
 @inject IUnitOfWork UnitOfWork
-@inject IAuditLogService AuditLogService
 @inject ToastService ToastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUserIdentity> UserManager
+@inject ICancelAdminRfqUseCase CancelAdminRfqUseCase
+@inject ICloseAdminRfqUseCase CloseAdminRfqUseCase
+@inject IMoveAdminRfqToEvaluationUseCase MoveAdminRfqToEvaluationUseCase
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using ProQuote.Application.UseCases.AdminRfqs.CancelRfq
+@using ProQuote.Application.UseCases.AdminRfqs.CloseRfq
+@using ProQuote.Application.UseCases.AdminRfqs.MoveToEvaluation
+@using System.Security.Claims
 @implements IDisposable
 
 <h1 class="pq-section-title">@Title</h1>
@@ -94,6 +102,7 @@
     [Parameter] public bool ActiveOnly { get; set; }
 
     private bool _isLoading = true;
+    private Guid? _currentAdminUserId;
     private Guid? _busyRfqId;
     private string _searchTerm = string.Empty;
     private string _statusFilter = string.Empty;
@@ -127,6 +136,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _currentAdminUserId = await GetCurrentUserIdAsync();
         await LoadAsync();
     }
 
@@ -208,52 +218,30 @@
 
     private async Task MoveToEvaluationAsync(Guid rfqId)
     {
-        await UpdateStatusAsync(
-            rfqId,
-            Domain.Enums.RfqStatus.UnderEvaluation,
-            "AdminMarkedUnderEvaluation",
-            "RFQ moved to under evaluation by admin.");
-    }
-
-    private async Task CloseRfqAsync(Guid rfqId)
-    {
-        await UpdateStatusAsync(
-            rfqId,
-            Domain.Enums.RfqStatus.Closed,
-            "AdminClosedRfq",
-            "RFQ closed by admin.");
-    }
-
-    private async Task CancelRfqAsync(Guid rfqId)
-    {
-        Domain.Entities.Rfq? rfq = await UnitOfWork.Rfqs.GetByIdAsync(rfqId);
-        if (rfq == null || !rfq.CanBeCancelled())
+        if (!_currentAdminUserId.HasValue)
         {
+            ToastService.ShowError("Could not resolve current user.", "Failed to update RFQ");
             return;
         }
 
         _busyRfqId = rfqId;
         try
         {
-            rfq.Status = Domain.Enums.RfqStatus.Cancelled;
-            rfq.CancellationReason = "Cancelled by admin.";
-            UnitOfWork.Rfqs.Update(rfq);
-            await UnitOfWork.SaveChangesAsync();
+            MoveAdminRfqToEvaluationResponse response = await MoveAdminRfqToEvaluationUseCase.ExecuteAsync(
+                new MoveAdminRfqToEvaluationCommand(_currentAdminUserId.Value, rfqId));
 
-            await AuditLogService.LogRfqActionAsync(
-                rfq.Id,
-                rfq.BuyerId,
-                "AdminCancelledRfq",
-                "Rfq",
-                rfq.Id,
-                details: "RFQ cancelled by admin.");
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to move RFQ to under evaluation.", "Failed to update RFQ");
+                return;
+            }
 
-            ToastService.ShowSuccess("RFQ cancelled.");
+            ToastService.ShowSuccess("RFQ moved to under evaluation.");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            ToastService.ShowError(ex.Message, "Failed to cancel RFQ");
+            ToastService.ShowError(ex.Message, "Failed to update RFQ");
         }
         finally
         {
@@ -261,44 +249,65 @@
         }
     }
 
-    private async Task UpdateStatusAsync(
-        Guid rfqId,
-        Domain.Enums.RfqStatus status,
-        string auditAction,
-        string details)
+    private async Task CloseRfqAsync(Guid rfqId)
     {
-        Domain.Entities.Rfq? rfq = await UnitOfWork.Rfqs.GetByIdAsync(rfqId);
-        if (rfq == null)
+        if (!_currentAdminUserId.HasValue)
         {
+            ToastService.ShowError("Could not resolve current user.", "Failed to close RFQ");
             return;
         }
 
         _busyRfqId = rfqId;
         try
         {
-            rfq.Status = status;
-            if (status == Domain.Enums.RfqStatus.Closed)
+            CloseAdminRfqResponse response = await CloseAdminRfqUseCase.ExecuteAsync(
+                new CloseAdminRfqCommand(_currentAdminUserId.Value, rfqId));
+
+            if (!response.Succeeded)
             {
-                rfq.ClosedAt = DateTime.UtcNow;
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to close RFQ.", "Failed to close RFQ");
+                return;
             }
 
-            UnitOfWork.Rfqs.Update(rfq);
-            await UnitOfWork.SaveChangesAsync();
-
-            await AuditLogService.LogRfqActionAsync(
-                rfq.Id,
-                rfq.BuyerId,
-                auditAction,
-                "Rfq",
-                rfq.Id,
-                details: details);
-
-            ToastService.ShowSuccess($"RFQ moved to {status}.");
+            ToastService.ShowSuccess("RFQ closed.");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            ToastService.ShowError(ex.Message, "Failed to update RFQ status");
+            ToastService.ShowError(ex.Message, "Failed to close RFQ");
+        }
+        finally
+        {
+            _busyRfqId = null;
+        }
+    }
+
+    private async Task CancelRfqAsync(Guid rfqId)
+    {
+        if (!_currentAdminUserId.HasValue)
+        {
+            ToastService.ShowError("Could not resolve current user.", "Failed to cancel RFQ");
+            return;
+        }
+
+        _busyRfqId = rfqId;
+        try
+        {
+            CancelAdminRfqResponse response = await CancelAdminRfqUseCase.ExecuteAsync(
+                new CancelAdminRfqCommand(_currentAdminUserId.Value, rfqId));
+
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to cancel RFQ.", "Failed to cancel RFQ");
+                return;
+            }
+
+            ToastService.ShowSuccess("RFQ cancelled.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to cancel RFQ");
         }
         finally
         {
@@ -347,6 +356,13 @@
         return _buyerLabels.TryGetValue(buyerId, out string? label)
             ? label
             : "Unknown buyer";
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out Guid userId) ? userId : null;
     }
 
     private static string GetStatusVariant(Domain.Enums.RfqStatus status)

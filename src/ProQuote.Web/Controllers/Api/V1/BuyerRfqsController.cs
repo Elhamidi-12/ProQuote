@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using ProQuote.Application.DTOs.Invitations;
 using ProQuote.Application.DTOs.Quotes;
 using ProQuote.Application.Interfaces;
+using ProQuote.Application.UseCases.BuyerRfqs.AwardQuote;
+using ProQuote.Application.UseCases.BuyerRfqs.Invitations;
+using ProQuote.Application.UseCases.BuyerRfqs.PublishRfq;
 using ProQuote.Domain.Entities;
 using ProQuote.Domain.Enums;
 using ProQuote.Infrastructure.Identity;
@@ -23,6 +26,9 @@ public class BuyerRfqsController : ApiControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBuyerQuoteManagementService _buyerQuoteManagementService;
     private readonly IBuyerRfqInvitationService _buyerRfqInvitationService;
+    private readonly IAwardBuyerQuoteUseCase _awardBuyerQuoteUseCase;
+    private readonly ISendRfqInvitationsUseCase _sendRfqInvitationsUseCase;
+    private readonly IPublishBuyerRfqUseCase _publishBuyerRfqUseCase;
     private readonly IAuditLogService _auditLogService;
 
     /// <summary>
@@ -31,16 +37,25 @@ public class BuyerRfqsController : ApiControllerBase
     /// <param name="unitOfWork">Unit of work.</param>
     /// <param name="buyerQuoteManagementService">Buyer quote management service.</param>
     /// <param name="buyerRfqInvitationService">Buyer RFQ invitation service.</param>
+    /// <param name="awardBuyerQuoteUseCase">Award buyer quote use-case.</param>
+    /// <param name="sendRfqInvitationsUseCase">Send RFQ invitations use-case.</param>
+    /// <param name="publishBuyerRfqUseCase">Publish buyer RFQ use-case.</param>
     /// <param name="auditLogService">Audit log service.</param>
     public BuyerRfqsController(
         IUnitOfWork unitOfWork,
         IBuyerQuoteManagementService buyerQuoteManagementService,
         IBuyerRfqInvitationService buyerRfqInvitationService,
+        IAwardBuyerQuoteUseCase awardBuyerQuoteUseCase,
+        ISendRfqInvitationsUseCase sendRfqInvitationsUseCase,
+        IPublishBuyerRfqUseCase publishBuyerRfqUseCase,
         IAuditLogService auditLogService)
     {
         _unitOfWork = unitOfWork;
         _buyerQuoteManagementService = buyerQuoteManagementService;
         _buyerRfqInvitationService = buyerRfqInvitationService;
+        _awardBuyerQuoteUseCase = awardBuyerQuoteUseCase;
+        _sendRfqInvitationsUseCase = sendRfqInvitationsUseCase;
+        _publishBuyerRfqUseCase = publishBuyerRfqUseCase;
         _auditLogService = auditLogService;
     }
 
@@ -126,9 +141,9 @@ public class BuyerRfqsController : ApiControllerBase
             CategoryId = request.CategoryId,
             Currency = request.Currency.Trim().ToUpperInvariant(),
             SubmissionDeadline = request.SubmissionDeadline.ToUniversalTime(),
-            Status = request.Publish ? RfqStatus.Published : RfqStatus.Draft,
+            Status = RfqStatus.Draft,
             BuyerId = CurrentUserId.Value,
-            PublishedAt = request.Publish ? DateTime.UtcNow : null,
+            PublishedAt = null,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -157,8 +172,20 @@ public class BuyerRfqsController : ApiControllerBase
             "RfqCreated",
             "Rfq",
             rfq.Id,
-            details: request.Publish ? "RFQ created and published via API." : "RFQ draft created via API.",
+            details: "RFQ draft created via API.",
             ipAddress: RemoteIpAddress);
+
+        if (request.Publish)
+        {
+            PublishBuyerRfqResponse publishResult = await _publishBuyerRfqUseCase.ExecuteAsync(
+                new PublishBuyerRfqCommand(CurrentUserId.Value, rfq.Id, RemoteIpAddress));
+            if (!publishResult.Succeeded)
+            {
+                return BadRequest(new { message = publishResult.ErrorMessage ?? "Unable to publish RFQ." });
+            }
+
+            rfq = await _unitOfWork.Rfqs.GetWithDetailsAsync(rfq.Id) ?? rfq;
+        }
 
         return CreatedAtAction(nameof(GetById), new { id = rfq.Id }, ToDetails(rfq));
     }
@@ -203,8 +230,8 @@ public class BuyerRfqsController : ApiControllerBase
         rfq.CategoryId = request.CategoryId;
         rfq.Currency = request.Currency.Trim().ToUpperInvariant();
         rfq.SubmissionDeadline = request.SubmissionDeadline.ToUniversalTime();
-        rfq.Status = request.Publish ? RfqStatus.Published : RfqStatus.Draft;
-        rfq.PublishedAt ??= request.Publish ? DateTime.UtcNow : null;
+        rfq.Status = RfqStatus.Draft;
+        rfq.PublishedAt = null;
 
         rfq.LineItems.Clear();
         foreach (LineItemUpsertRequest item in request.LineItems.Select((x, i) => x with { DisplayOrder = i + 1 }))
@@ -232,10 +259,41 @@ public class BuyerRfqsController : ApiControllerBase
             "RfqUpdated",
             "Rfq",
             rfq.Id,
-            details: request.Publish ? "RFQ updated and published via API." : "RFQ updated via API.",
+            details: "RFQ updated via API.",
             ipAddress: RemoteIpAddress);
 
+        if (request.Publish)
+        {
+            PublishBuyerRfqResponse publishResult = await _publishBuyerRfqUseCase.ExecuteAsync(
+                new PublishBuyerRfqCommand(CurrentUserId.Value, rfq.Id, RemoteIpAddress));
+            if (!publishResult.Succeeded)
+            {
+                return BadRequest(new { message = publishResult.ErrorMessage ?? "Unable to publish RFQ." });
+            }
+
+            rfq = await _unitOfWork.Rfqs.GetWithDetailsAsync(rfq.Id) ?? rfq;
+        }
+
         return Ok(ToDetails(rfq));
+    }
+
+    /// <summary>
+    /// Publishes a buyer RFQ draft.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <returns>Publish result.</returns>
+    [HttpPost("{id:guid}/publish")]
+    public async Task<IActionResult> Publish(Guid id)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        PublishBuyerRfqResponse result = await _publishBuyerRfqUseCase.ExecuteAsync(
+            new PublishBuyerRfqCommand(CurrentUserId.Value, id, RemoteIpAddress));
+
+        return result.Succeeded ? Ok(result) : BadRequest(result);
     }
 
     /// <summary>
@@ -270,11 +328,13 @@ public class BuyerRfqsController : ApiControllerBase
             return Unauthorized();
         }
 
-        AwardQuoteResponse result = await _buyerQuoteManagementService.AwardQuoteAsync(
+        AwardBuyerQuoteCommand command = new(
             CurrentUserId.Value,
             id,
             quoteId,
             request?.BuyerNotes);
+
+        AwardQuoteResponse result = await _awardBuyerQuoteUseCase.ExecuteAsync(command);
 
         return result.Succeeded ? Ok(result) : BadRequest(result);
     }
@@ -310,10 +370,11 @@ public class BuyerRfqsController : ApiControllerBase
             return Unauthorized();
         }
 
-        SendRfqInvitationsResponse response = await _buyerRfqInvitationService.SendInvitationsAsync(
-            CurrentUserId.Value,
-            id,
-            request?.SupplierIds ?? []);
+        SendRfqInvitationsResponse response = await _sendRfqInvitationsUseCase.ExecuteAsync(
+            new SendRfqInvitationsCommand(
+                CurrentUserId.Value,
+                id,
+                request?.SupplierIds ?? []));
 
         return response.Succeeded ? Ok(response) : BadRequest(response);
     }

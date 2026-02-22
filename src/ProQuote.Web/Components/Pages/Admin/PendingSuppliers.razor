@@ -2,7 +2,12 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using ProQuote.Application.UseCases.AdminSuppliers.ReviewSupplier
 @inject ToastService ToastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IReviewSupplierRegistrationUseCase ReviewSupplierRegistrationUseCase
 
 <PageTitle>Pending Suppliers - ProQuote</PageTitle>
 
@@ -77,6 +82,7 @@
 @code {
     private List<Domain.Entities.Supplier> _pendingSuppliers = [];
     private bool _isLoading = true;
+    private Guid? _currentAdminUserId;
     private Guid? _busySupplierId;
     private ApprovalAction? _busyAction;
 
@@ -100,6 +106,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _currentAdminUserId = await GetCurrentUserIdAsync();
         await LoadPendingSuppliersAsync();
     }
 
@@ -126,6 +133,12 @@
 
     private async Task ApproveSupplierAsync(Guid supplierId)
     {
+        if (!_currentAdminUserId.HasValue)
+        {
+            ToastService.ShowError("Could not resolve current user.", "Approval failed");
+            return;
+        }
+
         Domain.Entities.Supplier? supplier = _pendingSuppliers.FirstOrDefault(s => s.Id == supplierId);
         if (supplier is null)
         {
@@ -137,11 +150,17 @@
 
         try
         {
-            supplier.Status = Domain.Enums.SupplierStatus.Approved;
-            supplier.ApprovedAt = DateTime.UtcNow;
-            supplier.StatusReason = null;
-            UnitOfWork.Suppliers.Update(supplier);
-            await UnitOfWork.SaveChangesAsync();
+            ReviewSupplierRegistrationResponse response = await ReviewSupplierRegistrationUseCase.ExecuteAsync(
+                new ReviewSupplierRegistrationCommand(
+                    _currentAdminUserId.Value,
+                    supplier.Id,
+                    Approve: true));
+
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to approve supplier.", "Approval failed");
+                return;
+            }
 
             _pendingSuppliers.Remove(supplier);
             ToastService.ShowSuccess($"{supplier.CompanyName} approved.");
@@ -174,6 +193,12 @@
 
     private async Task RejectSupplierAsync()
     {
+        if (!_currentAdminUserId.HasValue)
+        {
+            ToastService.ShowError("Could not resolve current user.", "Rejection failed");
+            return;
+        }
+
         if (_rejectSupplier is null)
         {
             return;
@@ -185,14 +210,18 @@
 
         try
         {
-            _rejectSupplier.Status = Domain.Enums.SupplierStatus.Rejected;
-            _rejectSupplier.ApprovedAt = null;
-            _rejectSupplier.StatusReason = string.IsNullOrWhiteSpace(_rejectionReason)
-                ? "Rejected by admin."
-                : _rejectionReason.Trim();
+            ReviewSupplierRegistrationResponse response = await ReviewSupplierRegistrationUseCase.ExecuteAsync(
+                new ReviewSupplierRegistrationCommand(
+                    _currentAdminUserId.Value,
+                    _rejectSupplier.Id,
+                    Approve: false,
+                    Reason: _rejectionReason));
 
-            UnitOfWork.Suppliers.Update(_rejectSupplier);
-            await UnitOfWork.SaveChangesAsync();
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to reject supplier.", "Rejection failed");
+                return;
+            }
 
             _pendingSuppliers.Remove(_rejectSupplier);
             ToastService.ShowSuccess($"{_rejectSupplier.CompanyName} rejected.");
@@ -218,6 +247,13 @@
         }
 
         return string.Join(", ", supplier.Categories.Select(c => c.Category.Name));
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdClaim, out Guid userId) ? userId : null;
     }
 
     private enum ApprovalAction
