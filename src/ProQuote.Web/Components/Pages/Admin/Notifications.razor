@@ -1,0 +1,272 @@
+@page "/admin/notifications"
+@rendermode InteractiveServer
+@layout AdminLayout
+@attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using System.Security.Claims
+@using ProQuote.Application.DTOs.Communication
+@inject ICommunicationService CommunicationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject ToastService ToastService
+
+<PageTitle>Admin Notifications - ProQuote</PageTitle>
+
+<div class="pq-notifications-page">
+    <section class="pq-notifications-hero">
+        <div>
+            <p class="pq-notifications-hero__eyebrow">Control Center</p>
+            <h1 class="pq-section-title">Notifications</h1>
+            <p class="pq-notifications-hero__subtitle">Track activity, approvals, and updates in one place.</p>
+        </div>
+        <div class="pq-notifications-hero__icon" aria-hidden="true">
+            <i class="bi bi-bell-fill"></i>
+        </div>
+    </section>
+
+    <PqCard>
+        <div class="pq-notifications-toolbar">
+            <div class="pq-notifications-toolbar__actions">
+                <PqSelect Label="Filter"
+                          Value="@_filter"
+                          ValueChanged="OnFilterChangedAsync"
+                          Options="_filterOptions" />
+                <PqButton Variant="secondary" OnClick="LoadNotificationsAsync" Loading="_isLoading">Refresh</PqButton>
+                <PqButton Variant="ghost" OnClick="MarkAllAsReadAsync" Disabled="@(_isLoading || _unreadCount == 0)">Mark All Read</PqButton>
+            </div>
+        </div>
+
+        <div class="pq-notifications-metrics">
+            <article class="pq-notifications-metric is-unread">
+                <span class="pq-notifications-metric__label">Unread</span>
+                <strong class="pq-notifications-metric__value">@_unreadCount</strong>
+            </article>
+            <article class="pq-notifications-metric">
+                <span class="pq-notifications-metric__label">Read</span>
+                <strong class="pq-notifications-metric__value">@ReadCount</strong>
+            </article>
+            <article class="pq-notifications-metric">
+                <span class="pq-notifications-metric__label">Total</span>
+                <strong class="pq-notifications-metric__value">@_notifications.Count</strong>
+            </article>
+            <article class="pq-notifications-metric">
+                <span class="pq-notifications-metric__label">Completion</span>
+                <strong class="pq-notifications-metric__value">@ReadRateLabel</strong>
+            </article>
+        </div>
+    </PqCard>
+
+    <PqCard>
+        @if (_isLoading)
+        {
+            <p class="pq-body-sm">Loading notifications...</p>
+        }
+        else if (_notifications.Count == 0)
+        {
+            <div class="pq-notifications-empty">
+                <i class="bi bi-check2-circle"></i>
+                <p class="pq-body-sm">You're all caught up. No notifications found.</p>
+            </div>
+        }
+        else
+        {
+            <ul class="pq-notifications-list">
+                @foreach (NotificationItemDto notification in _notifications)
+                {
+                    <li class="pq-notification-item @(!notification.IsRead ? "is-unread" : string.Empty)">
+                        <div class="pq-notification-item__icon" aria-hidden="true">
+                            <i class="bi @GetTypeIcon(notification.Type)"></i>
+                        </div>
+                        <div class="pq-notification-item__body">
+                            <div class="pq-notification-item__header">
+                                <strong>@notification.Title</strong>
+                                <PqBadge Variant="@(notification.IsRead ? "info" : "pending")">@((notification.IsRead ? "Read" : "Unread"))</PqBadge>
+                            </div>
+                            <p class="pq-body-sm">@notification.Message</p>
+                            <div class="pq-notification-item__meta">
+                                <PqBadge Variant="@GetTypeVariant(notification.Type)">@FormatType(notification.Type)</PqBadge>
+                                <span>@GetRelativeTime(notification.SentAt)</span>
+                                <span>@notification.SentAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
+                            </div>
+                        </div>
+                        <div class="pq-notification-item__actions">
+                            @if (!notification.IsRead)
+                            {
+                                <PqButton Variant="secondary" Size="sm" OnClick="@(() => MarkOneAsReadAsync(notification.Id))">Mark Read</PqButton>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(notification.ActionUrl))
+                            {
+                                <PqButton Variant="primary" Size="sm" OnClick="@(() => OpenActionAsync(notification))">Open</PqButton>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </PqCard>
+</div>
+
+@code {
+    private Guid? _currentUserId;
+    private bool _isLoading = true;
+    private string _filter = "all";
+    private int _unreadCount;
+    private List<NotificationItemDto> _notifications = [];
+    private int ReadCount => Math.Max(0, _notifications.Count - _unreadCount);
+    private string ReadRateLabel => _notifications.Count == 0
+        ? "0%"
+        : $"{Math.Round((double)ReadCount * 100 / _notifications.Count):0}%";
+
+    private readonly List<PqSelect.SelectOption> _filterOptions =
+    [
+        new() { Value = "all", Label = "All notifications" },
+        new() { Value = "unread", Label = "Unread only" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUserId = await GetCurrentUserIdAsync();
+        await LoadNotificationsAsync();
+    }
+
+    private async Task OnFilterChangedAsync(string? value)
+    {
+        _filter = value ?? "all";
+        await LoadNotificationsAsync();
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            if (!_currentUserId.HasValue)
+            {
+                _notifications = [];
+                _unreadCount = 0;
+                return;
+            }
+
+            IReadOnlyList<NotificationItemDto> notifications = await CommunicationService.GetNotificationsAsync(
+                _currentUserId.Value,
+                take: 100,
+                unreadOnly: _filter == "unread");
+
+            _notifications = notifications.ToList();
+            _unreadCount = await CommunicationService.GetUnreadNotificationCountAsync(_currentUserId.Value);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to load notifications");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task MarkOneAsReadAsync(Guid notificationId)
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        bool marked = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notificationId);
+        if (marked)
+        {
+            await LoadNotificationsAsync();
+        }
+    }
+
+    private async Task MarkAllAsReadAsync()
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        int updated = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
+        if (updated > 0)
+        {
+            ToastService.ShowSuccess("Notifications marked as read.");
+            await LoadNotificationsAsync();
+        }
+    }
+
+    private async Task OpenActionAsync(NotificationItemDto notification)
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        if (!notification.IsRead)
+        {
+            _ = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notification.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(notification.ActionUrl))
+        {
+            NavigationManager.NavigateTo(notification.ActionUrl);
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        string? userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
+    }
+
+    private static string GetTypeVariant(string type)
+    {
+        return type.ToLowerInvariant() switch
+        {
+            "rfq" => "primary",
+            "message" => "info",
+            "award" => "awarded",
+            "approval" => "success",
+            "reminder" => "pending",
+            _ => "info"
+        };
+    }
+
+    private static string GetTypeIcon(string type)
+    {
+        return type.ToLowerInvariant() switch
+        {
+            "rfq" => "bi-file-earmark-text",
+            "message" => "bi-chat-left-dots",
+            "award" => "bi-trophy",
+            "approval" => "bi-check2-circle",
+            "reminder" => "bi-alarm",
+            _ => "bi-bell"
+        };
+    }
+
+    private static string FormatType(string type)
+    {
+        return string.IsNullOrWhiteSpace(type) ? "General" : type;
+    }
+
+    private static string GetRelativeTime(DateTime sentAtUtc)
+    {
+        TimeSpan delta = DateTime.UtcNow - sentAtUtc;
+        if (delta.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+
+        if (delta.TotalHours < 1)
+        {
+            return $"{Math.Max(1, (int)delta.TotalMinutes)}m ago";
+        }
+
+        if (delta.TotalDays < 1)
+        {
+            return $"{Math.Max(1, (int)delta.TotalHours)}h ago";
+        }
+
+        return $"{Math.Max(1, (int)delta.TotalDays)}d ago";
+    }
+}

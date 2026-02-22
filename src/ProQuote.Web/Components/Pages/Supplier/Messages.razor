@@ -67,39 +67,6 @@ else
                 </div>
             }
         </PqCard>
-
-        <PqCard>
-            <div class="pq-flex pq-justify-between pq-items-center">
-                <h2 class="pq-card-title">Notifications</h2>
-                <div style="display:flex;gap:var(--pq-space-2);align-items:center;">
-                    <PqBadge Variant="pending">@_unreadNotificationCount unread</PqBadge>
-                    <PqButton Variant="ghost" Size="sm" OnClick="MarkAllNotificationsAsReadAsync">Mark All Read</PqButton>
-                </div>
-            </div>
-            @if (_notifications.Count == 0)
-            {
-                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">No notifications.</p>
-            }
-            else
-            {
-                <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
-                    @foreach (NotificationItemDto notification in _notifications)
-                    {
-                        <li style="display:flex;justify-content:space-between;gap:var(--pq-space-2);align-items:flex-start;">
-                            <div>
-                                <div class="pq-body-sm"><strong>@notification.Title</strong></div>
-                                <div class="pq-body-sm">@notification.Message</div>
-                                <div class="pq-caption">@notification.SentAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</div>
-                            </div>
-                            @if (!notification.IsRead)
-                            {
-                                <PqButton Variant="secondary" Size="sm" OnClick="@(() => MarkNotificationAsReadAsync(notification.Id))">Mark Read</PqButton>
-                            }
-                        </li>
-                    }
-                </ul>
-            }
-        </PqCard>
     </div>
 }
 
@@ -110,10 +77,8 @@ else
     private Guid? _selectedRfqId;
     private string _selectedRfqIdString = string.Empty;
     private string _messageText = string.Empty;
-    private int _unreadNotificationCount;
 
     private List<MessageThreadItemDto> _messages = [];
-    private List<NotificationItemDto> _notifications = [];
     private List<PqSelect.SelectOption> _rfqOptions = [];
 
     private readonly List<PqTable.TableColumn> _messageHeaders =
@@ -158,7 +123,6 @@ else
             }
 
             await RefreshMessagesAsync();
-            await RefreshNotificationsAsync();
         }
         catch (Exception ex)
         {
@@ -215,35 +179,6 @@ else
         }
     }
 
-    private async Task MarkNotificationAsReadAsync(Guid notificationId)
-    {
-        if (!_currentUserId.HasValue)
-        {
-            return;
-        }
-
-        bool marked = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notificationId);
-        if (marked)
-        {
-            await RefreshNotificationsAsync();
-        }
-    }
-
-    private async Task MarkAllNotificationsAsReadAsync()
-    {
-        if (!_currentUserId.HasValue)
-        {
-            return;
-        }
-
-        int updated = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
-        if (updated > 0)
-        {
-            ToastService.ShowSuccess("Notifications marked as read.");
-            await RefreshNotificationsAsync();
-        }
-    }
-
     private async Task RefreshMessagesAsync()
     {
         if (!_currentUserId.HasValue)
@@ -255,21 +190,6 @@ else
         IReadOnlyList<MessageThreadItemDto> messages =
             await CommunicationService.GetSupplierMessagesAsync(_currentUserId.Value, _selectedRfqId);
         _messages = messages.ToList();
-    }
-
-    private async Task RefreshNotificationsAsync()
-    {
-        if (!_currentUserId.HasValue)
-        {
-            _notifications = [];
-            _unreadNotificationCount = 0;
-            return;
-        }
-
-        IReadOnlyList<NotificationItemDto> notifications =
-            await CommunicationService.GetNotificationsAsync(_currentUserId.Value, take: 10);
-        _notifications = notifications.ToList();
-        _unreadNotificationCount = await CommunicationService.GetUnreadNotificationCountAsync(_currentUserId.Value);
     }
 
     private async Task<Guid?> GetCurrentUserIdAsync()
