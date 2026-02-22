@@ -12,22 +12,24 @@ namespace ProQuote.Infrastructure.Services;
 /// </summary>
 public class CommunicationService : ICommunicationService
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CommunicationService"/> class.
     /// </summary>
-    /// <param name="context">Database context.</param>
-    public CommunicationService(AppDbContext context)
+    /// <param name="dbContextFactory">Database context factory.</param>
+    public CommunicationService(IDbContextFactory<AppDbContext> dbContextFactory)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        _context = context;
+        ArgumentNullException.ThrowIfNull(dbContextFactory);
+        _dbContextFactory = dbContextFactory;
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<NotificationItemDto>> GetNotificationsAsync(Guid userId, int take = 20, bool unreadOnly = false)
     {
-        IQueryable<Notification> query = _context.Notifications
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        IQueryable<Notification> query = context.Notifications
             .Where(n => n.UserId == userId);
 
         if (unreadOnly)
@@ -52,15 +54,18 @@ public class CommunicationService : ICommunicationService
     }
 
     /// <inheritdoc />
-    public Task<int> GetUnreadNotificationCountAsync(Guid userId)
+    public async Task<int> GetUnreadNotificationCountAsync(Guid userId)
     {
-        return _context.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
     }
 
     /// <inheritdoc />
     public async Task<bool> MarkNotificationAsReadAsync(Guid userId, Guid notificationId)
     {
-        Notification? notification = await _context.Notifications
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        Notification? notification = await context.Notifications
             .FirstOrDefaultAsync(n => n.UserId == userId && n.Id == notificationId);
 
         if (notification == null)
@@ -69,15 +74,17 @@ public class CommunicationService : ICommunicationService
         }
 
         notification.MarkAsRead();
-        _context.Notifications.Update(notification);
-        await _context.SaveChangesAsync();
+        context.Notifications.Update(notification);
+        await context.SaveChangesAsync();
         return true;
     }
 
     /// <inheritdoc />
     public async Task<int> MarkAllNotificationsAsReadAsync(Guid userId)
     {
-        List<Notification> notifications = await _context.Notifications
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        List<Notification> notifications = await context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
             .ToListAsync();
 
@@ -88,8 +95,8 @@ public class CommunicationService : ICommunicationService
 
         if (notifications.Count > 0)
         {
-            _context.Notifications.UpdateRange(notifications);
-            await _context.SaveChangesAsync();
+            context.Notifications.UpdateRange(notifications);
+            await context.SaveChangesAsync();
         }
 
         return notifications.Count;
@@ -98,7 +105,9 @@ public class CommunicationService : ICommunicationService
     /// <inheritdoc />
     public async Task<IReadOnlyList<MessagingRfqOptionDto>> GetBuyerRfqOptionsAsync(Guid buyerUserId)
     {
-        return await _context.Rfqs
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        return await context.Rfqs
             .Where(r => r.BuyerId == buyerUserId)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new MessagingRfqOptionDto
@@ -113,7 +122,9 @@ public class CommunicationService : ICommunicationService
     /// <inheritdoc />
     public async Task<IReadOnlyList<MessagingRfqOptionDto>> GetSupplierRfqOptionsAsync(Guid supplierUserId)
     {
-        Supplier? supplier = await _context.Suppliers
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        Supplier? supplier = await context.Suppliers
             .FirstOrDefaultAsync(s => s.UserId == supplierUserId);
 
         if (supplier == null)
@@ -121,7 +132,7 @@ public class CommunicationService : ICommunicationService
             return [];
         }
 
-        return await _context.RfqInvitations
+        return await context.RfqInvitations
             .Where(i => i.SupplierId == supplier.Id)
             .Select(i => i.Rfq)
             .Distinct()
@@ -138,7 +149,9 @@ public class CommunicationService : ICommunicationService
     /// <inheritdoc />
     public async Task<IReadOnlyList<MessageThreadItemDto>> GetBuyerMessagesAsync(Guid buyerUserId, Guid? rfqId = null, int take = 100)
     {
-        IQueryable<QaMessage> query = _context.QaMessages
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        IQueryable<QaMessage> query = context.QaMessages
             .Where(m => m.Rfq.BuyerId == buyerUserId);
 
         if (rfqId.HasValue)
@@ -167,7 +180,9 @@ public class CommunicationService : ICommunicationService
     /// <inheritdoc />
     public async Task<IReadOnlyList<MessageThreadItemDto>> GetSupplierMessagesAsync(Guid supplierUserId, Guid? rfqId = null, int take = 100)
     {
-        Supplier? supplier = await _context.Suppliers
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        Supplier? supplier = await context.Suppliers
             .FirstOrDefaultAsync(s => s.UserId == supplierUserId);
 
         if (supplier == null)
@@ -175,7 +190,7 @@ public class CommunicationService : ICommunicationService
             return [];
         }
 
-        IQueryable<QaMessage> query = _context.QaMessages
+        IQueryable<QaMessage> query = context.QaMessages
             .Where(m =>
                 m.Rfq.Invitations.Any(i => i.SupplierId == supplier.Id) &&
                 (!m.TargetSupplierId.HasValue || m.TargetSupplierId == supplier.Id));
@@ -211,7 +226,9 @@ public class CommunicationService : ICommunicationService
             return false;
         }
 
-        Rfq? rfq = await _context.Rfqs
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        Rfq? rfq = await context.Rfqs
             .Include(r => r.Invitations)
             .FirstOrDefaultAsync(r => r.Id == rfqId && r.BuyerId == buyerUserId);
 
@@ -238,13 +255,13 @@ public class CommunicationService : ICommunicationService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _context.QaMessages.AddAsync(qaMessage);
+        await context.QaMessages.AddAsync(qaMessage);
 
         IEnumerable<Guid> targetSupplierIds = targetSupplierId.HasValue
             ? [targetSupplierId.Value]
             : rfq.Invitations.Select(i => i.SupplierId).Distinct();
 
-        List<Guid> recipientUserIds = await _context.Suppliers
+        List<Guid> recipientUserIds = await context.Suppliers
             .Where(s => targetSupplierIds.Contains(s.Id))
             .Select(s => s.UserId)
             .Distinct()
@@ -252,7 +269,7 @@ public class CommunicationService : ICommunicationService
 
         foreach (Guid userId in recipientUserIds)
         {
-            await _context.Notifications.AddAsync(new Notification
+            await context.Notifications.AddAsync(new Notification
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
@@ -268,7 +285,7 @@ public class CommunicationService : ICommunicationService
             });
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return true;
     }
 
@@ -280,7 +297,9 @@ public class CommunicationService : ICommunicationService
             return false;
         }
 
-        Supplier? supplier = await _context.Suppliers
+        await using AppDbContext context = await _dbContextFactory.CreateDbContextAsync();
+
+        Supplier? supplier = await context.Suppliers
             .FirstOrDefaultAsync(s => s.UserId == supplierUserId);
 
         if (supplier == null)
@@ -288,7 +307,7 @@ public class CommunicationService : ICommunicationService
             return false;
         }
 
-        Rfq? rfq = await _context.Rfqs
+        Rfq? rfq = await context.Rfqs
             .Include(r => r.Invitations)
             .FirstOrDefaultAsync(r => r.Id == rfqId);
 
@@ -310,8 +329,8 @@ public class CommunicationService : ICommunicationService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _context.QaMessages.AddAsync(qaMessage);
-        await _context.Notifications.AddAsync(new Notification
+        await context.QaMessages.AddAsync(qaMessage);
+        await context.Notifications.AddAsync(new Notification
         {
             Id = Guid.NewGuid(),
             UserId = rfq.BuyerId,
@@ -326,7 +345,7 @@ public class CommunicationService : ICommunicationService
             CreatedAt = DateTime.UtcNow
         });
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return true;
     }
 }

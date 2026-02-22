@@ -5,36 +5,160 @@
 @inject CustomAuthStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
+@inject PostLoginNotificationStore PostLoginNotificationStore
 
 <PageTitle>Login - ProQuote</PageTitle>
 
-<div style="max-width:520px;margin:var(--pq-space-10) auto;">
-    <PqCard>
-        <h1 class="pq-section-title">Sign In</h1>
-        <EditForm Model="_loginRequest" OnValidSubmit="HandleLoginAsync" FormName="loginForm">
-            <DataAnnotationsValidator />
-            <div class="pq-flex pq-flex-col pq-gap-3" style="margin-top:var(--pq-space-4);">
-                <PqInput Label="Email" Type="email" Value="@_loginRequest.Email" ValueChanged="@(v => _loginRequest.Email = v ?? string.Empty)" Disabled="_isLoading" />
-                <PqInput Label="Password" Type="password" Value="@_loginRequest.Password" ValueChanged="@(v => _loginRequest.Password = v ?? string.Empty)" Disabled="_isLoading" />
-                @if (!string.IsNullOrWhiteSpace(_errorMessage))
-                {
-                    <p class="pq-caption" style="color:var(--pq-danger-text)">@_errorMessage</p>
-                }
-                <PqButton Variant="primary" Type="submit" Loading="_isLoading" FullWidth="true">Sign In</PqButton>
+<div class="login-page">
+    <section class="login-page__left">
+        <div class="login-page__brand">
+            <img class="login-page__brand-logo" src="/_content/ProQuote.UI/assets/proquote-logo.svg" alt="ProQuote" />
+            <div class="login-page__brand-title">
+                Pro<span>Quote</span>
             </div>
-        </EditForm>
-        <div style="margin-top:var(--pq-space-4);display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
-            <a href="/register">Register as Buyer</a>
-            <a href="/register/supplier">Register as Supplier</a>
-            <a href="/showcase">UI Showcase</a>
         </div>
-    </PqCard>
+        <p class="login-page__tagline">Smarter procurement, faster decisions</p>
+
+        <div class="login-page__card">
+            <PqCard>
+            <div class="login-page__role-tabs" role="tablist" aria-label="Login role">
+                @foreach (RoleTab roleTab in _roleTabs)
+                {
+                    bool isActive = string.Equals(_selectedRole, roleTab.Value, StringComparison.OrdinalIgnoreCase);
+                    <PqButton Variant="@(isActive ? "secondary" : "ghost")"
+                              Size="sm"
+                              Disabled="_isLoading"
+                              OnClick="@(() => SelectRoleAsync(roleTab.Value))">
+                        @roleTab.Label
+                    </PqButton>
+                }
+            </div>
+
+            <EditForm Model="_loginRequest" OnValidSubmit="HandleLoginAsync" FormName="loginForm">
+                <DataAnnotationsValidator />
+                <div class="login-page__form">
+                    <PqInput Label="Email"
+                             Type="email"
+                             Placeholder="you@company.com"
+                             Value="@_loginRequest.Email"
+                             ValueChanged="@(v => _loginRequest.Email = v ?? string.Empty)"
+                             Disabled="_isLoading" />
+                    <PqInput Label="Password"
+                             Type="password"
+                             Value="@_loginRequest.Password"
+                             ValueChanged="@(v => _loginRequest.Password = v ?? string.Empty)"
+                             Disabled="_isLoading" />
+
+                    <div class="login-page__meta">
+                        <label class="login-page__remember">
+                            <input type="checkbox" checked="@_rememberMe" @onchange="OnRememberMeChanged" />
+                            <span>Remember me</span>
+                        </label>
+                        <a href="#" @onclick="PreventLink">Forgot password?</a>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                    {
+                        <p class="pq-caption login-page__error">@_errorMessage</p>
+                    }
+
+                    <PqButton Variant="primary" Type="submit" Loading="_isLoading" FullWidth="true">Sign In</PqButton>
+                </div>
+            </EditForm>
+
+            <div class="login-page__register">
+                @if (_selectedRole == "supplier")
+                {
+                    <p>New supplier?</p>
+                    <a class="login-page__supplier-cta" href="/register/supplier">
+                        <PqButton Variant="secondary" FullWidth="true">
+                            <span class="login-page__cta-label">
+                                <i class="bi bi-building-add" aria-hidden="true"></i>
+                                Register your company
+                            </span>
+                        </PqButton>
+                    </a>
+                }
+                else if (_selectedRole == "buyer")
+                {
+                    <p>New buyer?</p>
+                    <a class="login-page__supplier-cta" href="/register">
+                        <PqButton Variant="secondary" FullWidth="true">
+                            <span class="login-page__cta-label">
+                                <i class="bi bi-person-plus" aria-hidden="true"></i>
+                                Create buyer account
+                            </span>
+                        </PqButton>
+                    </a>
+                }
+                else
+                {
+                    <p class="login-page__admin-hint">
+                        Admin accounts are created by the platform team.
+                    </p>
+                }
+            </div>
+            </PqCard>
+        </div>
+
+        <div class="login-page__trusted">
+            <p>Trusted by 500+ companies</p>
+            <div class="login-page__trusted-list">
+                <span>BuildCorp</span>
+                <span>TechGroup</span>
+                <span>RetailChain</span>
+                <span>FinanceCo</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="login-page__right">
+        <div class="login-page__hero">
+            <h2>Streamline Your Procurement</h2>
+            <p>From request to award - manage your entire RFQ lifecycle in one platform.</p>
+
+            <ul class="login-page__features">
+                @foreach (FeatureItem feature in _features)
+                {
+                    <li>
+                        <span class="login-page__feature-icon">
+                            <i class="bi bi-@feature.Icon"></i>
+                        </span>
+                        <div>
+                            <h3>@feature.Title</h3>
+                            <p>@feature.Description</p>
+                        </div>
+                        <span class="login-page__check">
+                            <i class="bi bi-check-circle"></i>
+                        </span>
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
 </div>
 
 @code {
     private LoginRequest _loginRequest = new();
     private bool _isLoading;
     private string? _errorMessage;
+    private bool _rememberMe;
+    private string _selectedRole = "buyer";
+
+    private readonly List<RoleTab> _roleTabs =
+    [
+        new() { Label = "Buyer", Value = "buyer" },
+        new() { Label = "Supplier", Value = "supplier" },
+        new() { Label = "Admin", Value = "admin" }
+    ];
+
+    private readonly List<FeatureItem> _features =
+    [
+        new() { Title = "Create RFQ", Description = "Define requirements & invite suppliers", Icon = "file-earmark-text" },
+        new() { Title = "Receive Quotes", Description = "Suppliers submit competitive bids", Icon = "arrow-right" },
+        new() { Title = "Compare & Evaluate", Description = "Side-by-side quote analysis", Icon = "sliders" },
+        new() { Title = "Award Contract", Description = "Select the best supplier", Icon = "award" }
+    ];
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
@@ -43,19 +167,29 @@
     {
         _isLoading = true;
         _errorMessage = null;
+        const string genericLoginError = "Email or password is wrong.";
 
         try
         {
+            _loginRequest.RememberMe = _rememberMe;
             AuthResponse response = await AuthService.LoginAsync(_loginRequest);
             if (response.Succeeded)
             {
+                if (response.User == null || !CanAccessSelectedPortal(response.User))
+                {
+                    _errorMessage = genericLoginError;
+                    ToastService.ShowError(_errorMessage);
+                    return;
+                }
+
                 await AuthStateProvider.MarkUserAsAuthenticatedAsync(response);
-                ToastService.ShowSuccess($"Welcome back, {response.User?.FirstName}!");
+                string displayName = string.IsNullOrWhiteSpace(response.User?.FirstName) ? "back" : response.User!.FirstName;
+                PostLoginNotificationStore.SetSuccess($"Welcome {displayName}!");
                 NavigationManager.NavigateTo(GetRedirectUrl(response.User!), forceLoad: false);
             }
             else
             {
-                _errorMessage = response.ErrorMessage ?? "Login failed. Please try again.";
+                _errorMessage = genericLoginError;
                 ToastService.ShowError(_errorMessage);
             }
         }
@@ -81,9 +215,60 @@
             }
         }
 
+        if (_selectedRole == "admin" && user.Roles.Contains(ApplicationRoles.Admin)) return "/admin/dashboard";
+        if (_selectedRole == "supplier" && user.Roles.Contains(ApplicationRoles.Supplier)) return "/supplier/dashboard";
+        if (_selectedRole == "buyer" && user.Roles.Contains(ApplicationRoles.Buyer)) return "/buyer/dashboard";
+
         if (user.Roles.Contains(ApplicationRoles.Admin)) return "/admin/dashboard";
         if (user.Roles.Contains(ApplicationRoles.Supplier)) return "/supplier/dashboard";
         if (user.Roles.Contains(ApplicationRoles.Buyer)) return "/buyer/dashboard";
         return "/";
+    }
+
+    private Task SelectRoleAsync(string role)
+    {
+        _selectedRole = role;
+        _loginRequest.Email = string.Empty;
+        _loginRequest.Password = string.Empty;
+        _errorMessage = null;
+        return Task.CompletedTask;
+    }
+
+    private void OnRememberMeChanged(ChangeEventArgs e)
+    {
+        _rememberMe = e.Value switch
+        {
+            bool b => b,
+            string s when bool.TryParse(s, out bool parsed) => parsed,
+            _ => false
+        };
+    }
+
+    private Task PreventLink(MouseEventArgs _)
+    {
+        return Task.CompletedTask;
+    }
+
+    private bool CanAccessSelectedPortal(UserDto user)
+    {
+        return _selectedRole switch
+        {
+            "admin" => user.Roles.Contains(ApplicationRoles.Admin),
+            "supplier" => user.Roles.Contains(ApplicationRoles.Supplier),
+            _ => user.Roles.Contains(ApplicationRoles.Buyer)
+        };
+    }
+
+    private sealed class RoleTab
+    {
+        public string Label { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+    }
+
+    private sealed class FeatureItem
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
     }
 }

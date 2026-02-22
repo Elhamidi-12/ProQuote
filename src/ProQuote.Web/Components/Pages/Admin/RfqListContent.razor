@@ -1,40 +1,45 @@
 @inject IUnitOfWork UnitOfWork
 @inject IAuditLogService AuditLogService
 @inject ToastService ToastService
+@inject UserManager<ApplicationUserIdentity> UserManager
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@implements IDisposable
 
 <h1 class="pq-section-title">@Title</h1>
 <PqCard>
-    <div class="pq-flex pq-gap-2 pq-items-end" style="flex-wrap:wrap;">
-        <div style="min-width:260px;flex:1;">
+    <div class="rfq-list__filters">
+        <div class="rfq-list__filter-field">
             <PqInput Label="Search"
                      Value="@_searchTerm"
-                     ValueChanged="@(v => _searchTerm = v ?? string.Empty)"
+                     ValueChanged="OnSearchChangedAsync"
                      Placeholder="Reference or title..."
                      Disabled="_isLoading" />
         </div>
-        <div style="min-width:220px;flex:1;">
+        <div class="rfq-list__filter-field">
             <PqSelect Label="Status"
                       Value="@_statusFilter"
-                      ValueChanged="@(v => _statusFilter = v ?? string.Empty)"
+                      ValueChanged="OnStatusChangedAsync"
                       Options="_statusOptions"
                       Placeholder="All statuses"
                       Disabled="_isLoading" />
         </div>
-        <PqButton Variant="secondary" OnClick="LoadAsync" Loading="_isLoading">Apply</PqButton>
-        <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
+        <div class="rfq-list__filter-actions">
+            <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
+        </div>
     </div>
 
     @if (_isLoading)
     {
-        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">Loading RFQs...</p>
+        <p class="pq-body-sm rfq-list__state">Loading RFQs...</p>
     }
     else if (_rfqs.Count == 0)
     {
-        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">No RFQs found.</p>
+        <p class="pq-body-sm rfq-list__state">No RFQs found.</p>
     }
     else
     {
-        <div style="margin-top:var(--pq-space-3);">
+        <div class="rfq-list__table-wrap">
             <PqTable Headers="_headers">
                 @foreach (Domain.Entities.Rfq rfq in _rfqs)
                 {
@@ -42,12 +47,12 @@
                         <td>@rfq.ReferenceNumber</td>
                         <td>@rfq.Title</td>
                         <td>@(rfq.Category?.Name ?? "-")</td>
-                        <td>@GetBuyerLabel(rfq)</td>
+                        <td>@GetBuyerLabel(rfq.BuyerId)</td>
                         <td>@rfq.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy")</td>
                         <td>@rfq.Quotes.Count</td>
                         <td><PqBadge Variant="@GetStatusVariant(rfq.Status)">@rfq.Status</PqBadge></td>
                         <td>
-                            <div style="display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
+                            <div class="rfq-list__actions">
                                 @if (CanMoveToEvaluation(rfq))
                                 {
                                     <PqButton Variant="secondary"
@@ -93,6 +98,8 @@
     private string _searchTerm = string.Empty;
     private string _statusFilter = string.Empty;
     private List<Domain.Entities.Rfq> _rfqs = [];
+    private Dictionary<Guid, string> _buyerLabels = [];
+    private CancellationTokenSource? _searchDebounceCts;
 
     private readonly List<PqTable.TableColumn> _headers =
     [
@@ -154,6 +161,8 @@
             _rfqs = query
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
+
+            await LoadBuyerLabelsAsync(_rfqs.Select(r => r.BuyerId));
         }
         catch (Exception ex)
         {
@@ -169,6 +178,31 @@
     {
         _searchTerm = string.Empty;
         _statusFilter = string.Empty;
+        await LoadAsync();
+    }
+
+    private async Task OnSearchChangedAsync(string? value)
+    {
+        _searchTerm = value ?? string.Empty;
+
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(280, _searchDebounceCts.Token);
+            await LoadAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore canceled debounce delays from newer keystrokes.
+        }
+    }
+
+    private async Task OnStatusChangedAsync(string? value)
+    {
+        _statusFilter = value ?? string.Empty;
         await LoadAsync();
     }
 
@@ -282,10 +316,37 @@
         return rfq.Status == Domain.Enums.RfqStatus.UnderEvaluation || rfq.Status == Domain.Enums.RfqStatus.Awarded;
     }
 
-    private static string GetBuyerLabel(Domain.Entities.Rfq rfq)
+    private async Task LoadBuyerLabelsAsync(IEnumerable<Guid> buyerIds)
     {
-        string fullName = $"{rfq.Buyer.FirstName} {rfq.Buyer.LastName}".Trim();
-        return string.IsNullOrWhiteSpace(fullName) ? rfq.Buyer.Email : fullName;
+        Guid[] uniqueBuyerIds = buyerIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (uniqueBuyerIds.Length == 0)
+        {
+            _buyerLabels.Clear();
+            return;
+        }
+
+        List<ApplicationUserIdentity> buyers = await UserManager.Users
+            .Where(u => uniqueBuyerIds.Contains(u.Id))
+            .ToListAsync();
+
+        _buyerLabels = buyers.ToDictionary(
+            user => user.Id,
+            user =>
+            {
+                string fullName = $"{user.FirstName} {user.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(fullName) ? user.Email ?? "Unknown buyer" : fullName;
+            });
+    }
+
+    private string GetBuyerLabel(Guid buyerId)
+    {
+        return _buyerLabels.TryGetValue(buyerId, out string? label)
+            ? label
+            : "Unknown buyer";
     }
 
     private static string GetStatusVariant(Domain.Enums.RfqStatus status)
@@ -302,5 +363,11 @@
             Domain.Enums.RfqStatus.Expired => "expired",
             _ => "default"
         };
+    }
+
+    public void Dispose()
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
     }
 }

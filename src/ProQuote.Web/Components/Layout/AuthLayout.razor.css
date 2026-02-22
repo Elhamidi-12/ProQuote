@@ -3,10 +3,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--pq-space-6);
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--pq-primary-300) 20%, transparent) 0, transparent 40%),
-    radial-gradient(circle at bottom left, color-mix(in srgb, var(--pq-primary-600) 10%, transparent) 0, transparent 45%),
-    var(--pq-bg-page);
+  padding: clamp(1rem, 3vw, 2.25rem);
+  background: #e8edf5;
 }
-.pq-auth-layout__card { width: min(100%, 680px); }
+.pq-auth-layout__card {
+  width: min(100%, 1140px);
+}

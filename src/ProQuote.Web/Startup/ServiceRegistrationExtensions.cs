@@ -39,6 +39,7 @@ public static class ServiceRegistrationExtensions
 
         services.AddScoped<ThemeService>();
         services.AddScoped<ToastService>();
+        services.AddScoped<PostLoginNotificationStore>();
 
         JwtSettings jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
         EnsureJwtSecretIsConfigured(jwtSettings);

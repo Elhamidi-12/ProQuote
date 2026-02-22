@@ -1,0 +1,286 @@
+.login-page {
+  font-family: var(--pq-font-family);
+  height: clamp(680px, 84vh, 780px);
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f4f6fa 0 50%, #2e6fc7 50% 100%);
+  box-shadow: 0 18px 46px rgba(20, 38, 74, 0.18);
+}
+
+.login-page__left {
+  padding: clamp(1.75rem, 3.2vw, 2.7rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--pq-space-3);
+}
+
+.login-page__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pq-space-3);
+  width: 100%;
+}
+
+.login-page__brand-logo {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--pq-radius-lg);
+}
+
+.login-page__brand-title {
+  font-family: var(--pq-font-family);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: var(--pq-font-bold);
+  color: #14223a;
+  line-height: 1;
+  letter-spacing: var(--pq-tracking-tight);
+}
+
+.login-page__brand-title span {
+  color: #3a7ff4;
+}
+
+.login-page__tagline {
+  margin: 0;
+  color: #576f90;
+  font-size: 1.02rem;
+  text-align: center;
+  width: 100%;
+}
+
+.login-page__card .pq-card {
+  border-radius: 0.9rem;
+  border: 1px solid #d1dae7;
+  background: #f6f8fb;
+  box-shadow: 0 2px 6px rgba(33, 50, 81, 0.08);
+}
+
+.login-page__role-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--pq-space-2);
+  margin-bottom: var(--pq-space-3);
+  padding: 0.28rem;
+  border-radius: 0.55rem;
+  background: #e7ecf4;
+}
+
+.login-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pq-space-3);
+}
+
+.login-page__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--pq-space-2);
+}
+
+.login-page__remember {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pq-space-2);
+  color: #4a5f7d;
+  font-size: var(--pq-text-sm);
+}
+
+.login-page__meta a {
+  font-size: var(--pq-text-sm);
+  text-decoration: underline;
+}
+
+.login-page__error {
+  color: var(--pq-danger-text);
+  margin: 0;
+}
+
+.login-page__register {
+  margin-top: var(--pq-space-4);
+  border-top: 1px solid color-mix(in srgb, #8ea4c2 24%, transparent);
+  padding-top: var(--pq-space-4);
+}
+
+.login-page__register p {
+  margin: 0 0 var(--pq-space-2);
+  color: #607292;
+  text-align: center;
+}
+
+.login-page__register a {
+  text-decoration: none;
+}
+
+.login-page__supplier-cta {
+  display: block;
+}
+
+.login-page__supplier-cta .pq-button {
+  border-color: color-mix(in srgb, var(--pq-primary-500) 35%, var(--pq-border));
+  background: linear-gradient(180deg, #ffffff, #eef4ff);
+  color: #21458e;
+  box-shadow: 0 8px 18px rgba(48, 88, 170, 0.14);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.login-page__supplier-cta:hover .pq-button {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(48, 88, 170, 0.2);
+  border-color: color-mix(in srgb, var(--pq-primary-600) 45%, var(--pq-border));
+}
+
+.login-page__supplier-cta .pq-button:active {
+  transform: translateY(0);
+}
+
+.login-page__cta-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pq-space-2);
+  font-weight: var(--pq-font-semibold);
+}
+
+.login-page__cta-label i {
+  font-size: 1rem;
+}
+
+.login-page__buyer-signup {
+  margin: var(--pq-space-3) 0 0;
+  text-align: center;
+  color: #607292;
+  font-size: var(--pq-text-sm);
+}
+
+.login-page__buyer-cta {
+  margin-left: var(--pq-space-1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--pq-radius-full);
+  text-decoration: none;
+  font-weight: var(--pq-font-semibold);
+  color: #2452ab;
+  background: color-mix(in srgb, var(--pq-primary-100) 65%, transparent);
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.login-page__buyer-cta:hover {
+  color: #183d84;
+  background: color-mix(in srgb, var(--pq-primary-200) 75%, transparent);
+  transform: translateY(-1px);
+}
+
+.login-page__buyer-cta i {
+  font-size: 0.9rem;
+}
+
+.login-page__trusted {
+  margin-top: var(--pq-space-1);
+  color: #5b6f8d;
+  text-align: center;
+}
+
+.login-page__trusted p {
+  margin: 0 0 var(--pq-space-2);
+  font-size: var(--pq-text-sm);
+}
+
+.login-page__trusted-list {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--pq-space-3);
+  font-size: var(--pq-text-sm);
+  color: #a1aec3;
+  font-weight: 600;
+}
+
+.login-page__right {
+  padding: clamp(2rem, 3.8vw, 3.3rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-page__hero {
+  width: min(390px, 100%);
+  color: #fff;
+}
+
+.login-page__hero h2 {
+  margin: 0 0 var(--pq-space-3);
+  font-size: clamp(2.4rem, 3.5vw, 3.35rem);
+  line-height: 1.1;
+}
+
+.login-page__hero > p {
+  margin: 0 0 var(--pq-space-5);
+  color: color-mix(in srgb, #fff 78%, transparent);
+}
+
+.login-page__features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pq-space-3);
+}
+
+.login-page__features li {
+  display: grid;
+  grid-template-columns: 44px 1fr 24px;
+  align-items: center;
+  gap: var(--pq-space-3);
+}
+
+.login-page__feature-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--pq-radius-md);
+  border: 1px solid color-mix(in srgb, #fff 35%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.login-page__features h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.login-page__features p {
+  margin: 0.1rem 0 0;
+  color: color-mix(in srgb, #fff 74%, transparent);
+  font-size: 1.01rem;
+}
+
+.login-page__check {
+  color: #53f58b;
+  font-size: 1rem;
+  text-align: center;
+}
+
+@media (max-width: 1024px) {
+  .login-page {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    background: #f3f5f8;
+    border-radius: var(--pq-radius-xl);
+  }
+
+  .login-page__right {
+    border-top: 1px solid color-mix(in srgb, var(--pq-border) 60%, transparent);
+    background: linear-gradient(135deg, #1f69c8, #2e7de0);
+  }
+}

@@ -10,10 +10,66 @@
         <button class="pq-topbar__icon-btn" type="button" @onclick="OnThemeToggle" aria-label="Toggle theme">
             <i class="bi @(ThemeService.IsDarkMode ? "bi-sun" : "bi-moon-stars")"></i>
         </button>
-        <button class="pq-topbar__icon-btn" type="button" aria-label="Notifications">
+        <button class="pq-topbar__icon-btn pq-topbar__icon-btn--notifications @(_isNotificationPanelOpen ? "is-open" : string.Empty)"
+                type="button"
+                @onclick="ToggleNotificationsAsync"
+                aria-label="Notifications"
+                aria-expanded="@_isNotificationPanelOpen">
             <i class="bi bi-bell"></i>
-            <span class="pq-topbar__count">@NotificationCount</span>
+            @if (NotificationCount > 0)
+            {
+                <span class="pq-topbar__count">@GetNotificationCountLabel()</span>
+            }
         </button>
+        @if (_isNotificationPanelOpen)
+        {
+            <button type="button"
+                    class="pq-topbar__backdrop"
+                    aria-label="Close notifications"
+                    @onclick="CloseNotificationsAsync"></button>
+            <div class="pq-topbar__notifications">
+                <div class="pq-topbar__notifications-head">
+                    <h2>Notifications</h2>
+                    <button type="button"
+                            class="pq-topbar__link-btn"
+                            disabled="@(NotificationCount == 0)"
+                            @onclick="MarkAllAsReadAsync">
+                        Mark all read
+                    </button>
+                </div>
+
+                @if (NotificationLoading)
+                {
+                    <p class="pq-topbar__notifications-state">Loading...</p>
+                }
+                else if (Notifications.Count == 0)
+                {
+                    <p class="pq-topbar__notifications-state">You're all caught up.</p>
+                }
+                else
+                {
+                    <ul class="pq-topbar__notifications-list">
+                        @foreach (TopBarNotificationItem notification in Notifications)
+                        {
+                            <li>
+                                <button type="button"
+                                        class="pq-topbar__notification-item @(!notification.IsRead ? "is-unread" : string.Empty)"
+                                        @onclick="@(() => SelectNotificationAsync(notification))">
+                                    <span class="pq-topbar__notification-icon">
+                                        <i class="bi @GetNotificationIcon(notification.Type)"></i>
+                                    </span>
+                                    <span class="pq-topbar__notification-content">
+                                        <span class="pq-topbar__notification-title">@notification.Title</span>
+                                        <span class="pq-topbar__notification-message">@notification.Message</span>
+                                    </span>
+                                    <span class="pq-topbar__notification-time">@GetRelativeTime(notification.SentAt)</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
         @if (ShowUserAvatar)
         {
             <div class="pq-topbar__avatar">
@@ -37,9 +93,77 @@
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public bool ShowSearch { get; set; }
     [Parameter] public int NotificationCount { get; set; }
+    [Parameter] public IReadOnlyList<TopBarNotificationItem> Notifications { get; set; } = [];
+    [Parameter] public bool NotificationLoading { get; set; }
     [Parameter] public bool ShowUserAvatar { get; set; }
     [Parameter] public string UserName { get; set; } = string.Empty;
     [Parameter] public EventCallback OnThemeToggle { get; set; }
+    [Parameter] public EventCallback OnNotificationsOpen { get; set; }
+    [Parameter] public EventCallback<TopBarNotificationItem> OnNotificationClick { get; set; }
+    [Parameter] public EventCallback OnMarkAllNotificationsRead { get; set; }
+
+    private bool _isNotificationPanelOpen;
+
+    private string GetNotificationCountLabel()
+    {
+        return NotificationCount > 99 ? "99+" : NotificationCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private async Task ToggleNotificationsAsync()
+    {
+        _isNotificationPanelOpen = !_isNotificationPanelOpen;
+
+        if (_isNotificationPanelOpen && OnNotificationsOpen.HasDelegate)
+        {
+            await OnNotificationsOpen.InvokeAsync();
+        }
+    }
+
+    private Task CloseNotificationsAsync()
+    {
+        _isNotificationPanelOpen = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task SelectNotificationAsync(TopBarNotificationItem notification)
+    {
+        if (OnNotificationClick.HasDelegate)
+        {
+            await OnNotificationClick.InvokeAsync(notification);
+        }
+
+        _isNotificationPanelOpen = false;
+    }
+
+    private async Task MarkAllAsReadAsync()
+    {
+        if (OnMarkAllNotificationsRead.HasDelegate)
+        {
+            await OnMarkAllNotificationsRead.InvokeAsync();
+        }
+    }
+
+    private static string GetNotificationIcon(string type)
+    {
+        return type.ToLowerInvariant() switch
+        {
+            "rfqinvitation" => "bi-envelope-paper",
+            "qa" => "bi-chat-left-text",
+            "quote" => "bi-receipt",
+            "award" => "bi-trophy",
+            _ => "bi-bell"
+        };
+    }
+
+    private static string GetRelativeTime(DateTime sentAtUtc)
+    {
+        TimeSpan elapsed = DateTime.UtcNow - sentAtUtc;
+        if (elapsed.TotalMinutes < 1) return "now";
+        if (elapsed.TotalMinutes < 60) return $"{(int)elapsed.TotalMinutes}m";
+        if (elapsed.TotalHours < 24) return $"{(int)elapsed.TotalHours}h";
+        if (elapsed.TotalDays < 7) return $"{(int)elapsed.TotalDays}d";
+        return sentAtUtc.ToLocalTime().ToString("MMM dd", System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     public void Dispose()
     {

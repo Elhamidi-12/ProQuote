@@ -37,7 +37,6 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
     public async Task<Rfq?> GetWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await DbSet
-            .Include(r => r.Buyer)
             .Include(r => r.Category)
             .Include(r => r.LineItems.OrderBy(li => li.DisplayOrder))
             .Include(r => r.Invitations)
@@ -66,7 +65,6 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
     {
         return await DbSet
             .Where(r => r.BuyerId == buyerId)
-            .Include(r => r.Buyer)
             .Include(r => r.Category)
             .Include(r => r.Quotes)
                 .ThenInclude(q => q.Supplier)
@@ -126,7 +124,6 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
     public async Task<IReadOnlyList<Rfq>> GetAllWithDetailsAsync(CancellationToken cancellationToken = default)
     {
         return await DbSet
-            .Include(r => r.Buyer)
             .Include(r => r.Category)
             .Include(r => r.Quotes)
                 .ThenInclude(q => q.Supplier)

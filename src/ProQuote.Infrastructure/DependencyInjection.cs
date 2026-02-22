@@ -30,11 +30,14 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // Add DbContext
-        services.AddDbContext<AppDbContext>(options =>
+        // Add DbContext and factory (factory is used for safe parallel read scenarios).
+        Action<DbContextOptionsBuilder> dbOptions = options =>
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection"),
-                b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+                b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+
+        services.AddDbContext<AppDbContext>(dbOptions);
+        services.AddDbContextFactory<AppDbContext>(dbOptions, ServiceLifetime.Scoped);
 
         // Add JWT Settings
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));

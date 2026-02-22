@@ -4,10 +4,13 @@
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
 @inject IUnitOfWork UnitOfWork
 @inject ToastService ToastService
+@inject UserManager<ApplicationUserIdentity> UserManager
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 
 <PageTitle>Admin Reports - ProQuote</PageTitle>
 
-<div class="pq-flex pq-flex-col pq-gap-4">
+<div class="pq-flex pq-flex-col pq-gap-4 admin-reports">
     <h1 class="pq-section-title">Reports</h1>
 
     @if (_isLoading)
@@ -18,7 +21,7 @@
     }
     else
     {
-        <div class="dashboard-grid">
+        <div class="admin-reports__stats-grid">
             <PqStatCard Title="Total RFQs" Value="@_stats.TotalRfqs.ToString()" Icon="file-earmark-text" />
             <PqStatCard Title="Open RFQs" Value="@_stats.OpenRfqs.ToString()" Icon="lightning-charge" />
             <PqStatCard Title="Awarded RFQs" Value="@_stats.AwardedRfqs.ToString()" Icon="trophy" />
@@ -29,7 +32,7 @@
             <PqStatCard Title="Pending Suppliers" Value="@_stats.PendingSuppliers.ToString()" Icon="hourglass-split" />
         </div>
 
-        <div class="dashboard-grid">
+        <div class="admin-reports__insights-grid">
             <PqCard>
                 <h2 class="pq-card-title">RFQ Status Mix</h2>
                 <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
@@ -71,7 +74,7 @@
                                 <td>@rfq.ReferenceNumber</td>
                                 <td>@rfq.Title</td>
                                 <td>@(rfq.Category?.Name ?? "-")</td>
-                                <td>@GetBuyerLabel(rfq)</td>
+                                <td>@GetBuyerLabel(rfq.BuyerId)</td>
                                 <td><PqBadge Variant="@GetStatusVariant(rfq.Status)">@rfq.Status</PqBadge></td>
                                 <td>@rfq.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
                             </tr>
@@ -113,6 +116,7 @@
     private ReportStats _stats = new();
     private List<Domain.Entities.Rfq> _recentRfqs = [];
     private List<Domain.Entities.Quote> _recentAwards = [];
+    private Dictionary<Guid, string> _buyerLabels = [];
 
     private readonly List<PqTable.TableColumn> _rfqHeaders =
     [
@@ -185,6 +189,8 @@
                 .Take(10)
                 .ToList();
 
+            await LoadBuyerLabelsAsync(_recentRfqs.Select(r => r.BuyerId));
+
             _recentAwards = quotes
                 .Where(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded)
                 .OrderByDescending(q => q.Rfq.AwardedAt ?? q.SubmittedAt)
@@ -201,10 +207,37 @@
         }
     }
 
-    private static string GetBuyerLabel(Domain.Entities.Rfq rfq)
+    private async Task LoadBuyerLabelsAsync(IEnumerable<Guid> buyerIds)
     {
-        string fullName = $"{rfq.Buyer.FirstName} {rfq.Buyer.LastName}".Trim();
-        return string.IsNullOrWhiteSpace(fullName) ? rfq.Buyer.Email : fullName;
+        Guid[] uniqueBuyerIds = buyerIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (uniqueBuyerIds.Length == 0)
+        {
+            _buyerLabels.Clear();
+            return;
+        }
+
+        List<ApplicationUserIdentity> buyers = await UserManager.Users
+            .Where(u => uniqueBuyerIds.Contains(u.Id))
+            .ToListAsync();
+
+        _buyerLabels = buyers.ToDictionary(
+            user => user.Id,
+            user =>
+            {
+                string fullName = $"{user.FirstName} {user.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(fullName) ? user.Email ?? "Unknown buyer" : fullName;
+            });
+    }
+
+    private string GetBuyerLabel(Guid buyerId)
+    {
+        return _buyerLabels.TryGetValue(buyerId, out string? label)
+            ? label
+            : "Unknown buyer";
     }
 
     private static string GetStatusVariant(Domain.Enums.RfqStatus status)

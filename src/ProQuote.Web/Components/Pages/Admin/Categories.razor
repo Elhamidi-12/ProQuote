@@ -9,22 +9,22 @@
 
 <h1 class="pq-section-title">Categories</h1>
 <PqCard>
-    <div class="pq-flex pq-justify-between pq-items-center" style="gap:var(--pq-space-2);flex-wrap:wrap;">
-        <p class="pq-body-sm">Manage RFQ categories used by buyers and suppliers.</p>
+    <div class="categories__toolbar">
+        <p class="pq-body-sm categories__subtitle">Manage RFQ categories used by buyers and suppliers.</p>
         <PqButton Variant="primary" OnClick="OpenCreateModal">Add Category</PqButton>
     </div>
 
     @if (_isLoading)
     {
-        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">Loading categories...</p>
+        <p class="pq-body-sm categories__state">Loading categories...</p>
     }
     else if (_categories.Count == 0)
     {
-        <p class="pq-body-sm" style="margin-top:var(--pq-space-3);">No categories found.</p>
+        <p class="pq-body-sm categories__state">No categories found.</p>
     }
     else
     {
-        <div style="margin-top:var(--pq-space-3);">
+        <div class="categories__table-wrap">
             <PqTable Headers="_headers">
                 @foreach (Domain.Entities.Category category in _categories)
                 {
@@ -35,7 +35,7 @@
                         <td><PqBadge Variant="@(category.IsActive ? "published" : "expired")">@(category.IsActive ? "Active" : "Inactive")</PqBadge></td>
                         <td>@(string.IsNullOrWhiteSpace(category.Description) ? "-" : category.Description)</td>
                         <td>
-                            <div style="display:flex;gap:var(--pq-space-2);flex-wrap:wrap;">
+                            <div class="categories__actions">
                                 <PqButton Variant="secondary" Size="sm" OnClick="@(() => OpenEditModal(category.Id))">Edit</PqButton>
                                 <PqButton Variant="ghost" Size="sm" OnClick="@(() => ToggleActiveAsync(category.Id))">
                                     @(category.IsActive ? "Deactivate" : "Activate")
@@ -80,7 +80,7 @@
         </div>
     </ChildContent>
     <Footer>
-        <div style="display:flex;gap:var(--pq-space-2);justify-content:flex-end;">
+        <div class="categories__modal-footer">
             <PqButton Variant="ghost" OnClick="CloseModalAsync" Disabled="_isSaving">Cancel</PqButton>
             <PqButton Variant="primary" OnClick="SaveAsync" Loading="_isSaving">Save</PqButton>
         </div>

@@ -10,7 +10,7 @@
 
 <PageTitle>Buyer Reports - ProQuote</PageTitle>
 
-<div class="pq-flex pq-flex-col pq-gap-4">
+<div class="pq-flex pq-flex-col pq-gap-4 buyer-reports">
     <h1 class="pq-section-title">Reports</h1>
 
     @if (_isLoading)
@@ -21,7 +21,7 @@
     }
     else
     {
-        <div class="dashboard-grid">
+        <div class="buyer-reports__stats-grid">
             <PqStatCard Title="Total RFQs" Value="@_stats.TotalRfqs.ToString()" Icon="file-earmark-text" />
             <PqStatCard Title="Open RFQs" Value="@_stats.OpenRfqs.ToString()" Icon="lightning-charge" />
             <PqStatCard Title="Awarded RFQs" Value="@_stats.AwardedRfqs.ToString()" Icon="trophy" />
@@ -32,7 +32,7 @@
             <PqStatCard Title="Estimated Spend" Value="@_stats.TotalAwardedValue.ToString("N2")" Icon="cash-stack" />
         </div>
 
-        <div class="dashboard-grid">
+        <div class="buyer-reports__insights-grid">
             <PqCard>
                 <h2 class="pq-card-title">RFQ Pipeline</h2>
                 <ul style="margin-top:var(--pq-space-3);display:flex;flex-direction:column;gap:var(--pq-space-2);">
@@ -192,7 +192,10 @@
                     .Sum(q => q.TotalAmount)
             };
 
-            _recentRfqs = rfqs.Take(10).ToList();
+            _recentRfqs = rfqs
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(10)
+                .ToList();
             _recentAwards = rfqs
                 .Where(r => r.Status == Domain.Enums.RfqStatus.Awarded)
                 .OrderByDescending(r => r.AwardedAt ?? r.ModifiedAt ?? r.CreatedAt)

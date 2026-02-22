@@ -2,6 +2,7 @@
 @using System
 @using System.Linq
 @using System.Security.Claims
+@using ProQuote.Application.DTOs.Communication
 @using Microsoft.AspNetCore.Components.Authorization
 @using ProQuote.Infrastructure.Identity
 @using ProQuote.Web.Auth
@@ -10,6 +11,8 @@
 @inject NavigationManager NavigationManager
 @inject CustomAuthStateProvider AuthStateProvider
 @inject ICommunicationService CommunicationService
+@inject ToastService ToastService
+@inject PostLoginNotificationStore PostLoginNotificationStore
 
 <div class="pq-shell">
     <PqSidebar AppName="ProQuote Supplier"
@@ -27,7 +30,14 @@
         </AppTitle>
     </PqSidebar>
     <main class="pq-shell__main @(_isSidebarCollapsed ? "pq-shell__main--collapsed" : string.Empty)">
-        <PqTopBar Title="Supplier Portal" NotificationCount="@_notificationCount" OnThemeToggle="ThemeService.ToggleThemeAsync" />
+        <PqTopBar Title="Supplier Portal"
+                  NotificationCount="@_notificationCount"
+                  Notifications="_notifications"
+                  NotificationLoading="_notificationsLoading"
+                  OnNotificationsOpen="RefreshNotificationsAsync"
+                  OnNotificationClick="HandleNotificationClickAsync"
+                  OnMarkAllNotificationsRead="MarkAllNotificationsReadAsync"
+                  OnThemeToggle="ThemeService.ToggleThemeAsync" />
         <section class="pq-shell__content">@Body</section>
     </main>
     <PqToastContainer />
@@ -37,7 +47,10 @@
     private bool _isSidebarCollapsed;
     private string _userName = "Supplier User";
     private string _userRole = "Supplier";
+    private Guid? _currentUserId;
     private int _notificationCount;
+    private bool _notificationsLoading;
+    private List<TopBarNotificationItem> _notifications = [];
 
     private Task OnSidebarCollapsedChanged(bool isCollapsed)
     {
@@ -51,13 +64,28 @@
         await base.OnInitializedAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadNotificationCountAsync();
+
+            if (PostLoginNotificationStore.TryDequeueSuccess(out string message))
+            {
+                ToastService.ShowSuccess(message);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task LoadUserAsync()
     {
         AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
             UpdateUserFromClaims(authState.User);
-            await LoadNotificationCountAsync(authState.User);
+            ResolveCurrentUserId(authState.User);
         }
     }
 
@@ -94,16 +122,93 @@
         return Task.CompletedTask;
     }
 
-    private async Task LoadNotificationCountAsync(ClaimsPrincipal user)
+    private void ResolveCurrentUserId(ClaimsPrincipal user)
     {
         string? userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdClaim, out Guid userId))
+        {
+            _currentUserId = null;
+            _notificationCount = 0;
+            _notifications = [];
+            return;
+        }
+
+        _currentUserId = userId;
+    }
+
+    private async Task RefreshNotificationsAsync()
+    {
+        if (!_currentUserId.HasValue)
+        {
+            _notifications = [];
+            _notificationCount = 0;
+            return;
+        }
+
+        _notificationsLoading = true;
+        try
+        {
+            IReadOnlyList<NotificationItemDto> items = await CommunicationService.GetNotificationsAsync(_currentUserId.Value, take: 12);
+            _notifications = items
+                .Select(n => new TopBarNotificationItem
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    Message = n.Message,
+                    Type = n.Type,
+                    ActionUrl = n.ActionUrl,
+                    IsRead = n.IsRead,
+                    SentAt = n.SentAt
+                })
+                .ToList();
+
+            _notificationCount = await CommunicationService.GetUnreadNotificationCountAsync(_currentUserId.Value);
+        }
+        finally
+        {
+            _notificationsLoading = false;
+        }
+    }
+
+    private async Task LoadNotificationCountAsync()
+    {
+        if (!_currentUserId.HasValue)
         {
             _notificationCount = 0;
             return;
         }
 
-        _notificationCount = await CommunicationService.GetUnreadNotificationCountAsync(userId);
+        _notificationCount = await CommunicationService.GetUnreadNotificationCountAsync(_currentUserId.Value);
+    }
+
+    private async Task HandleNotificationClickAsync(TopBarNotificationItem notification)
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        if (!notification.IsRead)
+        {
+            _ = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notification.Id);
+            await RefreshNotificationsAsync();
+        }
+
+        if (!string.IsNullOrWhiteSpace(notification.ActionUrl))
+        {
+            NavigationManager.NavigateTo(notification.ActionUrl);
+        }
+    }
+
+    private async Task MarkAllNotificationsReadAsync()
+    {
+        if (!_currentUserId.HasValue)
+        {
+            return;
+        }
+
+        _ = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
+        await RefreshNotificationsAsync();
     }
 
     private string GetProfileRoute()

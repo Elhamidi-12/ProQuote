@@ -36,3 +36,58 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Global modern table treatment for all role portals */
+.pq-table-wrap {
+    border: 1px solid color-mix(in srgb, var(--pq-border) 76%, transparent);
+    border-radius: var(--pq-radius-lg);
+    overflow: auto;
+    background: color-mix(in srgb, var(--pq-surface) 88%, #fff);
+    box-shadow: 0 10px 22px rgba(18, 38, 78, 0.06);
+}
+
+.pq-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.pq-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, #f4f7fc, #edf2f9);
+    color: #6d84a6;
+    border-bottom: 1px solid color-mix(in srgb, var(--pq-border) 72%, transparent);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 0.82rem 0.78rem;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.pq-table td {
+    vertical-align: middle;
+    border-bottom: 1px solid color-mix(in srgb, var(--pq-border) 58%, transparent);
+    padding: 0.86rem 0.78rem;
+    line-height: 1.25;
+}
+
+.pq-table tbody tr:nth-child(odd) {
+    background: color-mix(in srgb, #f5f9ff 55%, transparent);
+}
+
+.pq-table tbody tr:hover {
+    background: color-mix(in srgb, #deebff 48%, transparent);
+}
+
+.pq-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+@media (max-width: 860px) {
+    .pq-table th,
+    .pq-table td {
+        padding: 0.68rem 0.62rem;
+    }
+}
