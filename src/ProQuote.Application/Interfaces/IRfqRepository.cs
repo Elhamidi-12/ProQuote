@@ -82,6 +82,15 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <returns>The RFQ document if found; otherwise, null.</returns>
     public Task<RfqDocument?> GetDocumentByIdAsync(Guid documentId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Checks whether the supplier has an invitation for the RFQ.
+    /// </summary>
+    /// <param name="rfqId">The RFQ identifier.</param>
+    /// <param name="supplierId">The supplier identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True when invitation exists; otherwise, false.</returns>
+    public Task<bool> HasSupplierInvitationAsync(Guid rfqId, Guid supplierId, CancellationToken cancellationToken = default);
+
     #endregion
 
     #region Reference Number Generation

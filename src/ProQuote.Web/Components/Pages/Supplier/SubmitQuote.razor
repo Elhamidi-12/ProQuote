@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using ProQuote.Application.DTOs.Quotes
+@using ProQuote.Web.Files
 @inject IQuoteSubmissionService QuoteSubmissionService
 @inject IUnitOfWork UnitOfWork
 @inject IWebHostEnvironment HostEnvironment
@@ -341,6 +342,12 @@ else
                 continue;
             }
 
+            if (!DocumentFileValidation.TryGetAllowedContentType(file.Name, out _))
+            {
+                ToastService.ShowError($"{file.Name} has an unsupported file type.");
+                continue;
+            }
+
             _pendingUploads.Add(new PendingUpload(file));
         }
     }
@@ -352,10 +359,7 @@ else
             return;
         }
 
-        string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
-            ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")
-            : HostEnvironment.WebRootPath;
-        string targetDir = Path.Combine(webRoot, "uploads", "quotes", quoteId.ToString("N"));
+        string targetDir = GetQuoteStorageDirectory(quoteId);
         Directory.CreateDirectory(targetDir);
 
         int displayOrder = _existingDocuments.Count > 0 ? _existingDocuments.Max(d => d.DisplayOrder) + 1 : 1;
@@ -367,19 +371,24 @@ else
             string extension = Path.GetExtension(file.Name);
             string storedFileName = $"{Guid.NewGuid():N}{extension}";
             string physicalPath = Path.Combine(targetDir, storedFileName);
+            if (!DocumentFileValidation.TryGetAllowedContentType(file.Name, out string safeContentType))
+            {
+                continue;
+            }
 
             await using Stream sourceStream = file.OpenReadStream(MaxUploadBytes);
             await using FileStream destinationStream = File.Create(physicalPath);
             await sourceStream.CopyToAsync(destinationStream);
 
-            string relativeFilePath = $"/uploads/quotes/{quoteId:N}/{storedFileName}";
+            Guid documentId = Guid.NewGuid();
+            string relativeFilePath = $"/api/v1/documents/quote/{documentId}";
             Domain.Entities.QuoteDocument document = new()
             {
-                Id = Guid.NewGuid(),
+                Id = documentId,
                 QuoteId = quoteId,
-                FileName = Path.GetFileName(file.Name),
+                FileName = DocumentFileValidation.SanitizeFileName(file.Name),
                 StoredFileName = storedFileName,
-                ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                ContentType = safeContentType,
                 FileSize = file.Size,
                 FilePath = relativeFilePath,
                 DisplayOrder = displayOrder++,
@@ -411,11 +420,7 @@ else
         UnitOfWork.Quotes.RemoveDocument(existing);
         await UnitOfWork.SaveChangesAsync();
 
-        string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
-            ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")
-            : HostEnvironment.WebRootPath;
-        string relativePath = existing.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-        string physicalPath = Path.Combine(webRoot, relativePath);
+        string physicalPath = Path.Combine(GetQuoteStorageDirectory(existing.QuoteId), existing.StoredFileName);
         if (File.Exists(physicalPath))
         {
             File.Delete(physicalPath);
@@ -463,6 +468,16 @@ else
         }
 
         return $"{size:0.##} {sizes[order]}";
+    }
+
+    private string GetPrivateUploadRoot()
+    {
+        return Path.Combine(HostEnvironment.ContentRootPath, "App_Data", "uploads");
+    }
+
+    private string GetQuoteStorageDirectory(Guid quoteId)
+    {
+        return Path.Combine(GetPrivateUploadRoot(), "quotes", quoteId.ToString("N"));
     }
 
     private sealed record PendingUpload(IBrowserFile File);

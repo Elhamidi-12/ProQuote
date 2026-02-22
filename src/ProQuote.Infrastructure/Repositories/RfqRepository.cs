@@ -121,6 +121,14 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
         return await Context.RfqDocuments.FirstOrDefaultAsync(d => d.Id == documentId, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<bool> HasSupplierInvitationAsync(Guid rfqId, Guid supplierId, CancellationToken cancellationToken = default)
+    {
+        return await Context.RfqInvitations.AnyAsync(
+            i => i.RfqId == rfqId && i.SupplierId == supplierId,
+            cancellationToken);
+    }
+
     #endregion
 
     #region Reference Number Generation
