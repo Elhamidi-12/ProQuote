@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using ProQuote.Infrastructure.Data;
 
@@ -33,22 +31,11 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 ["JwtSettings:Audience"] = "ProQuote.Tests.Client",
                 ["JwtSettings:AccessTokenExpirationMinutes"] = "60",
                 ["JwtSettings:RefreshTokenExpirationDays"] = "7",
-                ["ConnectionStrings:DefaultConnection"] = "UseInMemoryForTests"
+                ["Database:Provider"] = "InMemory",
+                ["Database:InMemoryName"] = _databaseName
             };
 
             config.AddInMemoryCollection(settings);
-        });
-
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<DbContextOptions<AppDbContext>>();
-            services.RemoveAll<AppDbContext>();
-            services.RemoveAll<IDbContextFactory<AppDbContext>>();
-
-            services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
-            services.AddDbContextFactory<AppDbContext>(
-                options => options.UseInMemoryDatabase(_databaseName),
-                ServiceLifetime.Scoped);
         });
     }
 

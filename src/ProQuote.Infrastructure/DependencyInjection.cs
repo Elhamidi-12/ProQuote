@@ -30,11 +30,22 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        string databaseProvider = configuration["Database:Provider"] ?? "SqlServer";
+
         // Add DbContext and factory (factory is used for safe parallel read scenarios).
         Action<DbContextOptionsBuilder> dbOptions = options =>
+        {
+            if (databaseProvider.Equals("InMemory", StringComparison.OrdinalIgnoreCase))
+            {
+                string databaseName = configuration["Database:InMemoryName"] ?? "ProQuoteTests";
+                options.UseInMemoryDatabase(databaseName);
+                return;
+            }
+
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection"),
                 b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+        };
 
         services.AddDbContext<AppDbContext>(dbOptions);
         services.AddDbContextFactory<AppDbContext>(dbOptions, ServiceLifetime.Scoped);
