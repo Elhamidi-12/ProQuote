@@ -81,6 +81,32 @@ else
             </div>
         </PqCard>
 
+        @if (RecommendedQuote is not null)
+        {
+            <PqCard>
+                <div class="pq-flex pq-justify-between pq-items-center" style="flex-wrap:wrap;gap:var(--pq-space-2);">
+                    <h2 class="pq-card-title">Award Decision Summary</h2>
+                    <PqBadge Variant="primary">Rank #1</PqBadge>
+                </div>
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-1);">
+                    Recommended supplier:
+                    <strong>@RecommendedQuote.SupplierName</strong>
+                </p>
+                <div class="pq-flex pq-gap-2" style="flex-wrap:wrap;margin-top:var(--pq-space-2);">
+                    <PqBadge Variant="published">Price Score: @RecommendedQuote.Score.PriceScore.ToString("N2")</PqBadge>
+                    <PqBadge Variant="pending">Lead-Time Score: @RecommendedQuote.Score.LeadTimeScore.ToString("N2")</PqBadge>
+                    <PqBadge Variant="secondary">Coverage Score: @RecommendedQuote.Score.CoverageScore.ToString("N2")</PqBadge>
+                    <PqBadge Variant="awarded">Final Score: @RecommendedQuote.Score.CompositeScore.ToString("N2")</PqBadge>
+                </div>
+                <p class="pq-body-sm" style="margin-top:var(--pq-space-2);">
+                    Weights:
+                    Price @_comparison.ScoringTemplate.PriceWeight.ToString("N2")%,
+                    Lead Time @_comparison.ScoringTemplate.LeadTimeWeight.ToString("N2")%,
+                    Coverage @_comparison.ScoringTemplate.CoverageWeight.ToString("N2")%.
+                </p>
+            </PqCard>
+        }
+
         <PqCard>
             <PqTable Headers="_headers">
                 @foreach (BuyerQuoteComparisonItemDto quote in _comparison.Quotes)
@@ -209,6 +235,8 @@ else
     private BuyerQuoteComparisonItemDto? SelectedQuote =>
         _comparison?.Quotes.FirstOrDefault(q => q.QuoteId == _selectedQuoteId);
 
+    private BuyerQuoteComparisonItemDto? RecommendedQuote => _comparison?.Quotes.FirstOrDefault();
+
     private bool IsAwardedRfq => _comparison?.Status == Domain.Enums.RfqStatus.Awarded;
 
     protected override async Task OnInitializedAsync()
@@ -294,14 +322,23 @@ else
             return;
         }
 
+        BuyerQuoteComparisonItemDto? quoteToAward = _comparison.Quotes.FirstOrDefault(q => q.QuoteId == quoteId);
+        if (quoteToAward is null)
+        {
+            ToastService.ShowError("Unable to resolve selected quote.");
+            return;
+        }
+
         _isAwarding = true;
         _awardingQuoteId = quoteId;
         try
         {
+            string decisionSummary = BuildAwardDecisionSummary(quoteToAward);
             AwardQuoteResponse result = await BuyerQuoteManagementService.AwardQuoteAsync(
                 _buyerUserId.Value,
                 _comparison.RfqId,
-                quoteId);
+                quoteId,
+                decisionSummary);
 
             if (!result.Succeeded)
             {
@@ -321,6 +358,28 @@ else
             _isAwarding = false;
             _awardingQuoteId = null;
         }
+    }
+
+    private string BuildAwardDecisionSummary(BuyerQuoteComparisonItemDto quote)
+    {
+        int rank = (_comparison?.Quotes.FindIndex(q => q.QuoteId == quote.QuoteId) ?? -1) + 1;
+        string rankLabel = rank > 0 ? $"Rank #{rank}" : "Rank unknown";
+
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "Awarded {0} ({1}) with Final Score {2:N2} [Price {3:N2}, Lead Time {4:N2}, Coverage {5:N2}], Total {6:N2} {7}, Lead Time {8} days; Weights Price {9:N2}%, Lead Time {10:N2}%, Coverage {11:N2}%.",
+            quote.SupplierName,
+            rankLabel,
+            quote.Score.CompositeScore,
+            quote.Score.PriceScore,
+            quote.Score.LeadTimeScore,
+            quote.Score.CoverageScore,
+            quote.TotalAmount,
+            _comparison?.Currency ?? "USD",
+            quote.LeadTimeDays,
+            _comparison?.ScoringTemplate.PriceWeight ?? 0m,
+            _comparison?.ScoringTemplate.LeadTimeWeight ?? 0m,
+            _comparison?.ScoringTemplate.CoverageWeight ?? 0m);
     }
 
     private Task OnPriceWeightChanged(string? value)

@@ -262,9 +262,26 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
             selectedQuote.Id,
             oldValue: null,
             newValue: $"{{\"awardedQuoteId\":\"{selectedQuote.Id}\"}}",
-            details: $"Awarded quote {selectedQuote.Id} for RFQ {rfq.ReferenceNumber}; rejected {comparableQuotes.Count - 1} other quote(s).");
+            details: BuildAwardAuditDetails(rfq.ReferenceNumber, selectedQuote.Id, comparableQuotes.Count - 1, selectedQuote.BuyerNotes));
 
         return AwardQuoteResponse.Success(rfqId, selectedQuote.Id);
+    }
+
+    private static string BuildAwardAuditDetails(string rfqReferenceNumber, Guid awardedQuoteId, int rejectedCount, string? decisionSummary)
+    {
+        string baseDetails = $"Awarded quote {awardedQuoteId} for RFQ {rfqReferenceNumber}; rejected {rejectedCount} other quote(s).";
+        if (string.IsNullOrWhiteSpace(decisionSummary))
+        {
+            return baseDetails;
+        }
+
+        string compactSummary = decisionSummary.Trim();
+        if (compactSummary.Length > 1400)
+        {
+            compactSummary = compactSummary[..1400];
+        }
+
+        return $"{baseDetails} Decision summary: {compactSummary}";
     }
 
     private static void ApplyQuoteScores(BuyerQuoteComparisonDto comparison)
