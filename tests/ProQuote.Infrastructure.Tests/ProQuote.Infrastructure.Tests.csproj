@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\ProQuote.Application\ProQuote.Application.csproj" />
     <ProjectReference Include="..\..\src\ProQuote.Domain\ProQuote.Domain.csproj" />
     <ProjectReference Include="..\..\src\ProQuote.Infrastructure\ProQuote.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ProQuote.Web\ProQuote.Web.csproj" />
   </ItemGroup>
 
 </Project>
