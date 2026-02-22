@@ -184,10 +184,15 @@ public class AuthService : IAuthService
             return AuthResponse.Failure("A supplier with this company name already exists.");
         }
 
-        using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction = await _context.Database.BeginTransactionAsync();
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
 
         try
         {
+            if (_context.Database.IsRelational())
+            {
+                transaction = await _context.Database.BeginTransactionAsync();
+            }
+
             // Create user
             ApplicationUserIdentity user = new()
             {
@@ -207,7 +212,12 @@ public class AuthService : IAuthService
                 return AuthResponse.Failure(result.Errors.Select(e => e.Description));
             }
 
-            await _userManager.AddToRoleAsync(user, ApplicationRoles.Supplier);
+            IdentityResult roleResult = await _userManager.AddToRoleAsync(user, ApplicationRoles.Supplier);
+            if (!roleResult.Succeeded)
+            {
+                await _userManager.DeleteAsync(user);
+                return AuthResponse.Failure(roleResult.Errors.Select(e => e.Description));
+            }
 
             // Create supplier profile (pending approval)
             Supplier supplier = new()
@@ -244,7 +254,11 @@ public class AuthService : IAuthService
             }
 
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync();
+            }
 
             UserDto userDto = await CreateUserDtoAsync(user, [ApplicationRoles.Supplier]);
             userDto.SupplierId = supplier.Id;
@@ -259,8 +273,18 @@ public class AuthService : IAuthService
         }
         catch
         {
-            await transaction.RollbackAsync();
+            if (transaction is not null)
+            {
+                await transaction.RollbackAsync();
+            }
             throw;
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync();
+            }
         }
     }
 
