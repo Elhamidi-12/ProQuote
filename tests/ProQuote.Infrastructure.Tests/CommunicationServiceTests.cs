@@ -11,7 +11,8 @@ public class CommunicationServiceTests
     [Fact]
     public async Task MarkAllNotificationsAsReadAsync_ShouldMarkUnreadNotifications()
     {
-        using var context = TestDbContextFactory.Create(Guid.NewGuid().ToString());
+        string databaseName = Guid.NewGuid().ToString();
+        using var context = TestDbContextFactory.Create(databaseName);
 
         ApplicationUserIdentity user = new()
         {
@@ -63,7 +64,7 @@ public class CommunicationServiceTests
         ]);
         await context.SaveChangesAsync();
 
-        CommunicationService service = new(context);
+        CommunicationService service = new(TestDbContextFactory.CreateFactory(databaseName));
         int updated = await service.MarkAllNotificationsAsReadAsync(user.Id);
         int unreadCount = await service.GetUnreadNotificationCountAsync(user.Id);
 
