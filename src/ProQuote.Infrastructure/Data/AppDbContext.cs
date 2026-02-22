@@ -99,6 +99,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUserIdentity, Applicati
     /// </summary>
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    /// <summary>
+    /// Gets or sets the quote scoring templates table.
+    /// </summary>
+    public DbSet<QuoteScoringTemplate> QuoteScoringTemplates => Set<QuoteScoringTemplate>();
+
     #endregion
 
     #region Methods

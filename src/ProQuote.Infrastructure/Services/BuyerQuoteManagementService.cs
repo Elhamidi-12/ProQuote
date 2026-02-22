@@ -15,18 +15,30 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
 {
     private readonly AppDbContext _context;
     private readonly IAuditLogService _auditLogService;
+    private readonly IQuoteComparisonCanonicalizationService _quoteComparisonCanonicalizationService;
+    private readonly IQuoteScoringTemplateService _quoteScoringTemplateService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BuyerQuoteManagementService"/> class.
     /// </summary>
     /// <param name="context">Database context.</param>
     /// <param name="auditLogService">Audit log service.</param>
-    public BuyerQuoteManagementService(AppDbContext context, IAuditLogService auditLogService)
+    /// <param name="quoteComparisonCanonicalizationService">Quote canonicalization service.</param>
+    /// <param name="quoteScoringTemplateService">Quote scoring template service.</param>
+    public BuyerQuoteManagementService(
+        AppDbContext context,
+        IAuditLogService auditLogService,
+        IQuoteComparisonCanonicalizationService quoteComparisonCanonicalizationService,
+        IQuoteScoringTemplateService quoteScoringTemplateService)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(auditLogService);
+        ArgumentNullException.ThrowIfNull(quoteComparisonCanonicalizationService);
+        ArgumentNullException.ThrowIfNull(quoteScoringTemplateService);
         _context = context;
         _auditLogService = auditLogService;
+        _quoteComparisonCanonicalizationService = quoteComparisonCanonicalizationService;
+        _quoteScoringTemplateService = quoteScoringTemplateService;
     }
 
     /// <inheritdoc />
@@ -137,6 +149,15 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
             }).ToList()
         };
 
+        dto.CanonicalComparison = _quoteComparisonCanonicalizationService.Build(dto);
+        dto.ScoringTemplate = await _quoteScoringTemplateService.GetTemplateAsync(buyerUserId, rfqId);
+        ApplyQuoteScores(dto);
+        dto.Quotes = dto.Quotes
+            .OrderByDescending(q => q.IsAwarded || q.Status == QuoteStatus.Awarded)
+            .ThenByDescending(q => q.Score.CompositeScore)
+            .ThenBy(q => q.TotalAmount)
+            .ToList();
+
         return dto;
     }
 
@@ -244,5 +265,67 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
             details: $"Awarded quote {selectedQuote.Id} for RFQ {rfq.ReferenceNumber}; rejected {comparableQuotes.Count - 1} other quote(s).");
 
         return AwardQuoteResponse.Success(rfqId, selectedQuote.Id);
+    }
+
+    private static void ApplyQuoteScores(BuyerQuoteComparisonDto comparison)
+    {
+        Dictionary<Guid, CanonicalQuoteEntryDto> canonicalByQuoteId = comparison.CanonicalComparison.Quotes
+            .ToDictionary(x => x.QuoteId);
+
+        List<(Guid QuoteId, decimal Value)> totals = canonicalByQuoteId.Values
+            .Select(x => (x.QuoteId, x.NormalizedTotalAmount))
+            .ToList();
+
+        List<(Guid QuoteId, decimal Value)> leadTimes = comparison.Quotes
+            .Select(x => (x.QuoteId, (decimal)x.LeadTimeDays))
+            .ToList();
+
+        decimal minTotal = totals.Count == 0 ? 0m : totals.Min(x => x.Value);
+        decimal maxTotal = totals.Count == 0 ? 0m : totals.Max(x => x.Value);
+        decimal minLead = leadTimes.Count == 0 ? 0m : leadTimes.Min(x => x.Value);
+        decimal maxLead = leadTimes.Count == 0 ? 0m : leadTimes.Max(x => x.Value);
+
+        foreach (BuyerQuoteComparisonItemDto quote in comparison.Quotes)
+        {
+            canonicalByQuoteId.TryGetValue(quote.QuoteId, out CanonicalQuoteEntryDto? canonical);
+
+            decimal coverageScore = canonical?.CoveragePercent ?? 0m;
+            decimal priceScore = ScoreLowerIsBetter(canonical?.NormalizedTotalAmount ?? quote.TotalAmount, minTotal, maxTotal);
+            decimal leadTimeScore = ScoreLowerIsBetter(quote.LeadTimeDays, minLead, maxLead);
+
+            decimal composite =
+                (priceScore * comparison.ScoringTemplate.PriceWeight +
+                 leadTimeScore * comparison.ScoringTemplate.LeadTimeWeight +
+                 coverageScore * comparison.ScoringTemplate.CoverageWeight) / 100m;
+
+            quote.Score = new QuoteScoreBreakdownDto
+            {
+                PriceScore = Math.Round(priceScore, 2),
+                LeadTimeScore = Math.Round(leadTimeScore, 2),
+                CoverageScore = Math.Round(coverageScore, 2),
+                CompositeScore = Math.Round(composite, 2)
+            };
+        }
+    }
+
+    private static decimal ScoreLowerIsBetter(decimal value, decimal min, decimal max)
+    {
+        if (max <= min)
+        {
+            return 100m;
+        }
+
+        decimal score = (max - value) * 100m / (max - min);
+        if (score < 0m)
+        {
+            return 0m;
+        }
+
+        if (score > 100m)
+        {
+            return 100m;
+        }
+
+        return score;
     }
 }

@@ -66,6 +66,10 @@
 - Introduced `Mark Notifications as Read` as application use-cases:
   - Added explicit use-cases for marking a single notification and marking all notifications as read.
   - Notification API endpoints and all role layouts/pages now delegate write operations to these use-cases.
+- Introduced initial quote differentiation foundations:
+  - Added canonical quote normalization model for line-level baselines and variance calculations.
+  - Added configurable weighted scoring template (price, lead time, coverage) with buyer UI save flow.
+  - Quote comparison now includes computed score breakdown per quote.
 
 This is the baseline pattern for future workflows:
 - Add new workflows as explicit command/use-case pairs before wiring UI or controllers.

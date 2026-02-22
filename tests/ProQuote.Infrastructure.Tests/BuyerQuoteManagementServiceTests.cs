@@ -18,7 +18,9 @@ public class BuyerQuoteManagementServiceTests
 
         (ApplicationUserIdentity buyer, Rfq rfq, Quote winningQuote, Quote losingQuote) = await SeedAwardScenarioAsync(context);
         AuditLogService auditLogService = new(context);
-        BuyerQuoteManagementService service = new(context, auditLogService);
+        QuoteComparisonCanonicalizationService canonicalizationService = new();
+        QuoteScoringTemplateService quoteScoringTemplateService = new(context);
+        BuyerQuoteManagementService service = new(context, auditLogService, canonicalizationService, quoteScoringTemplateService);
 
         var response = await service.AwardQuoteAsync(buyer.Id, rfq.Id, winningQuote.Id, "Best total and lead time");
 
@@ -48,7 +50,9 @@ public class BuyerQuoteManagementServiceTests
 
         (ApplicationUserIdentity buyer, Rfq rfq, Quote winningQuote, _) = await SeedAwardScenarioAsync(context);
         AuditLogService auditLogService = new(context);
-        BuyerQuoteManagementService service = new(context, auditLogService);
+        QuoteComparisonCanonicalizationService canonicalizationService = new();
+        QuoteScoringTemplateService quoteScoringTemplateService = new(context);
+        BuyerQuoteManagementService service = new(context, auditLogService, canonicalizationService, quoteScoringTemplateService);
 
         var response = await service.AwardQuoteAsync(Guid.NewGuid(), rfq.Id, winningQuote.Id);
 

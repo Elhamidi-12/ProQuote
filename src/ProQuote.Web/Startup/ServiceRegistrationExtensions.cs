@@ -13,6 +13,7 @@ using ProQuote.Application.UseCases.AdminSuppliers.ReviewSupplier;
 using ProQuote.Application.UseCases.BuyerRfqs.AwardQuote;
 using ProQuote.Application.UseCases.BuyerRfqs.Invitations;
 using ProQuote.Application.UseCases.BuyerRfqs.PublishRfq;
+using ProQuote.Application.UseCases.BuyerRfqs.Scoring.SetQuoteScoringTemplate;
 using ProQuote.Application.UseCases.Notifications.MarkAllNotificationsAsRead;
 using ProQuote.Application.UseCases.Notifications.MarkNotificationAsRead;
 using ProQuote.Infrastructure;
@@ -45,6 +46,7 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IAwardBuyerQuoteUseCase, AwardBuyerQuoteUseCase>();
         services.AddScoped<IPublishBuyerRfqUseCase, PublishBuyerRfqUseCase>();
         services.AddScoped<ISendRfqInvitationsUseCase, SendRfqInvitationsUseCase>();
+        services.AddScoped<ISetQuoteScoringTemplateUseCase, SetQuoteScoringTemplateUseCase>();
         services.AddScoped<IMarkNotificationAsReadUseCase, MarkNotificationAsReadUseCase>();
         services.AddScoped<IMarkAllNotificationsAsReadUseCase, MarkAllNotificationsAsReadUseCase>();
 

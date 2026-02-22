@@ -3,11 +3,14 @@
 @layout BuyerLayout
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
 @using System.Security.Claims
+@using System.Globalization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 @using ProQuote.Application.DTOs.Quotes
+@using ProQuote.Application.UseCases.BuyerRfqs.Scoring.SetQuoteScoringTemplate
 @implements IDisposable
 @inject IBuyerQuoteManagementService BuyerQuoteManagementService
+@inject ISetQuoteScoringTemplateUseCase SetQuoteScoringTemplateUseCase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
@@ -50,6 +53,35 @@ else
         </PqCard>
 
         <PqCard>
+            <h2 class="pq-card-title">Scoring Template</h2>
+            <p class="pq-body-sm">Adjust weights for ranking. Weights auto-normalize to 100% when saved.</p>
+            <div class="pq-flex pq-gap-3" style="flex-wrap:wrap;align-items:flex-end;margin-top:var(--pq-space-2);">
+                <div style="min-width:160px;">
+                    <PqInput Label="Price Weight"
+                             Type="number"
+                             Value="@_priceWeightInput"
+                             ValueChanged="OnPriceWeightChanged"
+                             Disabled="_isSavingTemplate" />
+                </div>
+                <div style="min-width:160px;">
+                    <PqInput Label="Lead Time Weight"
+                             Type="number"
+                             Value="@_leadTimeWeightInput"
+                             ValueChanged="OnLeadTimeWeightChanged"
+                             Disabled="_isSavingTemplate" />
+                </div>
+                <div style="min-width:160px;">
+                    <PqInput Label="Coverage Weight"
+                             Type="number"
+                             Value="@_coverageWeightInput"
+                             ValueChanged="OnCoverageWeightChanged"
+                             Disabled="_isSavingTemplate" />
+                </div>
+                <PqButton Variant="primary" OnClick="SaveTemplateAsync" Loading="_isSavingTemplate">Save Weights</PqButton>
+            </div>
+        </PqCard>
+
+        <PqCard>
             <PqTable Headers="_headers">
                 @foreach (BuyerQuoteComparisonItemDto quote in _comparison.Quotes)
                 {
@@ -57,6 +89,7 @@ else
                         <td>@quote.SupplierName</td>
                         <td>@quote.TotalAmount.ToString("N2") @_comparison.Currency</td>
                         <td>@quote.LeadTimeDays days</td>
+                        <td>@quote.Score.CompositeScore.ToString("N2")</td>
                         <td>@quote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</td>
                         <td><PqBadge Variant="@GetQuoteBadgeVariant(quote)">@GetQuoteLabel(quote)</PqBadge></td>
                         <td>
@@ -87,6 +120,7 @@ else
                     <PqBadge Variant="pending">Lead Time: @SelectedQuote.LeadTimeDays days</PqBadge>
                     <PqBadge Variant="published">Valid Until: @SelectedQuote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</PqBadge>
                     <PqBadge Variant="awarded">Total: @SelectedQuote.TotalAmount.ToString("N2") @_comparison.Currency</PqBadge>
+                    <PqBadge Variant="primary">Score: @SelectedQuote.Score.CompositeScore.ToString("N2")</PqBadge>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(SelectedQuote.PaymentTerms))
@@ -143,16 +177,22 @@ else
 
     private bool _isLoading = true;
     private bool _isAwarding;
+    private bool _isSavingTemplate;
     private Guid? _awardingQuoteId;
     private Guid? _buyerUserId;
     private Guid? _selectedQuoteId;
     private BuyerQuoteComparisonDto? _comparison;
+    private QuoteScoringTemplateDto _templateModel = new();
+    private string _priceWeightInput = "60";
+    private string _leadTimeWeightInput = "25";
+    private string _coverageWeightInput = "15";
 
     private readonly List<PqTable.TableColumn> _headers =
     [
         new() { Label = "Supplier", Field = "supplier" },
         new() { Label = "Total", Field = "total" },
         new() { Label = "Lead Time", Field = "leadTime" },
+        new() { Label = "Score", Field = "score" },
         new() { Label = "Valid Until", Field = "validUntil" },
         new() { Label = "Status", Field = "status" },
         new() { Label = "Actions", Field = "actions", Width = "220px" }
@@ -218,9 +258,18 @@ else
 
             _selectedQuoteId = _comparison.Quotes
                 .OrderByDescending(q => q.IsAwarded || q.Status == Domain.Enums.QuoteStatus.Awarded)
+                .ThenByDescending(q => q.Score.CompositeScore)
                 .ThenBy(q => q.TotalAmount)
                 .Select(q => (Guid?)q.QuoteId)
                 .FirstOrDefault();
+
+            _templateModel = new QuoteScoringTemplateDto
+            {
+                PriceWeight = _comparison.ScoringTemplate.PriceWeight,
+                LeadTimeWeight = _comparison.ScoringTemplate.LeadTimeWeight,
+                CoverageWeight = _comparison.ScoringTemplate.CoverageWeight
+            };
+            SyncWeightInputsFromTemplate();
         }
         catch (Exception ex)
         {
@@ -271,6 +320,68 @@ else
         {
             _isAwarding = false;
             _awardingQuoteId = null;
+        }
+    }
+
+    private Task OnPriceWeightChanged(string? value)
+    {
+        _priceWeightInput = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnLeadTimeWeightChanged(string? value)
+    {
+        _leadTimeWeightInput = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnCoverageWeightChanged(string? value)
+    {
+        _coverageWeightInput = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveTemplateAsync()
+    {
+        if (!_buyerUserId.HasValue || _comparison is null)
+        {
+            ToastService.ShowError("Unable to resolve scoring context.");
+            return;
+        }
+
+        _isSavingTemplate = true;
+        try
+        {
+            _templateModel.PriceWeight = ParseWeight(_priceWeightInput);
+            _templateModel.LeadTimeWeight = ParseWeight(_leadTimeWeightInput);
+            _templateModel.CoverageWeight = ParseWeight(_coverageWeightInput);
+
+            SetQuoteScoringTemplateResponse response = await SetQuoteScoringTemplateUseCase.ExecuteAsync(
+                new SetQuoteScoringTemplateCommand(
+                    _buyerUserId.Value,
+                    _comparison.RfqId,
+                    _templateModel.PriceWeight,
+                    _templateModel.LeadTimeWeight,
+                    _templateModel.CoverageWeight));
+
+            if (!response.Succeeded)
+            {
+                ToastService.ShowError(response.ErrorMessage ?? "Unable to save scoring template.");
+                return;
+            }
+
+            _templateModel = response.Template;
+            SyncWeightInputsFromTemplate();
+            ToastService.ShowSuccess("Scoring template saved.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "Failed to save scoring template");
+        }
+        finally
+        {
+            _isSavingTemplate = false;
         }
     }
 
@@ -331,6 +442,28 @@ else
         }
 
         return $"{size:0.##} {sizes[order]}";
+    }
+
+    private void SyncWeightInputsFromTemplate()
+    {
+        _priceWeightInput = _templateModel.PriceWeight.ToString("0.##", CultureInfo.InvariantCulture);
+        _leadTimeWeightInput = _templateModel.LeadTimeWeight.ToString("0.##", CultureInfo.InvariantCulture);
+        _coverageWeightInput = _templateModel.CoverageWeight.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private static decimal ParseWeight(string? value)
+    {
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal parsedInvariant))
+        {
+            return parsedInvariant;
+        }
+
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal parsedCurrent))
+        {
+            return parsedCurrent;
+        }
+
+        return 0m;
     }
 
     public void Dispose()

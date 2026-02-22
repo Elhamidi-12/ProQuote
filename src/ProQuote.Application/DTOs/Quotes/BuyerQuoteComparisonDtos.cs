@@ -89,6 +89,16 @@ public sealed class BuyerQuoteComparisonDto
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies Blazor/API serialization.")]
     public List<BuyerQuoteComparisonItemDto> Quotes { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets scoring template used for quote ranking.
+    /// </summary>
+    public QuoteScoringTemplateDto ScoringTemplate { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets canonical normalized comparison payload.
+    /// </summary>
+    public CanonicalQuoteComparisonDto CanonicalComparison { get; set; } = new();
 }
 
 /// <summary>
@@ -193,6 +203,11 @@ public sealed class BuyerQuoteComparisonItemDto
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies Blazor/API serialization.")]
     public List<BuyerQuoteComparisonDocumentDto> Documents { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets quote score breakdown.
+    /// </summary>
+    public QuoteScoreBreakdownDto Score { get; set; } = new();
 }
 
 /// <summary>

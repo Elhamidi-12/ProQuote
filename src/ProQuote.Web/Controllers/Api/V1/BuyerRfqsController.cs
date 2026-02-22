@@ -9,6 +9,7 @@ using ProQuote.Application.Interfaces;
 using ProQuote.Application.UseCases.BuyerRfqs.AwardQuote;
 using ProQuote.Application.UseCases.BuyerRfqs.Invitations;
 using ProQuote.Application.UseCases.BuyerRfqs.PublishRfq;
+using ProQuote.Application.UseCases.BuyerRfqs.Scoring.SetQuoteScoringTemplate;
 using ProQuote.Domain.Entities;
 using ProQuote.Domain.Enums;
 using ProQuote.Infrastructure.Identity;
@@ -26,9 +27,11 @@ public class BuyerRfqsController : ApiControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBuyerQuoteManagementService _buyerQuoteManagementService;
     private readonly IBuyerRfqInvitationService _buyerRfqInvitationService;
+    private readonly IQuoteScoringTemplateService _quoteScoringTemplateService;
     private readonly IAwardBuyerQuoteUseCase _awardBuyerQuoteUseCase;
     private readonly ISendRfqInvitationsUseCase _sendRfqInvitationsUseCase;
     private readonly IPublishBuyerRfqUseCase _publishBuyerRfqUseCase;
+    private readonly ISetQuoteScoringTemplateUseCase _setQuoteScoringTemplateUseCase;
     private readonly IAuditLogService _auditLogService;
 
     /// <summary>
@@ -37,25 +40,31 @@ public class BuyerRfqsController : ApiControllerBase
     /// <param name="unitOfWork">Unit of work.</param>
     /// <param name="buyerQuoteManagementService">Buyer quote management service.</param>
     /// <param name="buyerRfqInvitationService">Buyer RFQ invitation service.</param>
+    /// <param name="quoteScoringTemplateService">Quote scoring template service.</param>
     /// <param name="awardBuyerQuoteUseCase">Award buyer quote use-case.</param>
     /// <param name="sendRfqInvitationsUseCase">Send RFQ invitations use-case.</param>
     /// <param name="publishBuyerRfqUseCase">Publish buyer RFQ use-case.</param>
+    /// <param name="setQuoteScoringTemplateUseCase">Set quote scoring template use-case.</param>
     /// <param name="auditLogService">Audit log service.</param>
     public BuyerRfqsController(
         IUnitOfWork unitOfWork,
         IBuyerQuoteManagementService buyerQuoteManagementService,
         IBuyerRfqInvitationService buyerRfqInvitationService,
+        IQuoteScoringTemplateService quoteScoringTemplateService,
         IAwardBuyerQuoteUseCase awardBuyerQuoteUseCase,
         ISendRfqInvitationsUseCase sendRfqInvitationsUseCase,
         IPublishBuyerRfqUseCase publishBuyerRfqUseCase,
+        ISetQuoteScoringTemplateUseCase setQuoteScoringTemplateUseCase,
         IAuditLogService auditLogService)
     {
         _unitOfWork = unitOfWork;
         _buyerQuoteManagementService = buyerQuoteManagementService;
         _buyerRfqInvitationService = buyerRfqInvitationService;
+        _quoteScoringTemplateService = quoteScoringTemplateService;
         _awardBuyerQuoteUseCase = awardBuyerQuoteUseCase;
         _sendRfqInvitationsUseCase = sendRfqInvitationsUseCase;
         _publishBuyerRfqUseCase = publishBuyerRfqUseCase;
+        _setQuoteScoringTemplateUseCase = setQuoteScoringTemplateUseCase;
         _auditLogService = auditLogService;
     }
 
@@ -314,6 +323,55 @@ public class BuyerRfqsController : ApiControllerBase
     }
 
     /// <summary>
+    /// Gets quote scoring template for buyer RFQ comparison.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <returns>Scoring template payload.</returns>
+    [HttpGet("{id:guid}/quotes/scoring-template")]
+    public async Task<IActionResult> GetQuoteScoringTemplate(Guid id)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            QuoteScoringTemplateDto template = await _quoteScoringTemplateService.GetTemplateAsync(CurrentUserId.Value, id);
+            return Ok(template);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Updates quote scoring template for buyer RFQ comparison.
+    /// </summary>
+    /// <param name="id">RFQ identifier.</param>
+    /// <param name="request">Scoring template update request.</param>
+    /// <returns>Save result.</returns>
+    [HttpPut("{id:guid}/quotes/scoring-template")]
+    public async Task<IActionResult> UpdateQuoteScoringTemplate(Guid id, [FromBody] UpdateQuoteScoringTemplateRequest request)
+    {
+        if (!CurrentUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        SetQuoteScoringTemplateResponse result = await _setQuoteScoringTemplateUseCase.ExecuteAsync(
+            new SetQuoteScoringTemplateCommand(
+                CurrentUserId.Value,
+                id,
+                request?.PriceWeight ?? 0m,
+                request?.LeadTimeWeight ?? 0m,
+                request?.CoverageWeight ?? 0m));
+
+        return result.Succeeded ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>
     /// Awards selected quote for buyer RFQ.
     /// </summary>
     /// <param name="id">RFQ identifier.</param>
@@ -549,6 +607,27 @@ public class BuyerRfqsController : ApiControllerBase
         public string UnitOfMeasure { get; init; } = string.Empty;
         public string? TechnicalSpecs { get; init; }
         public int DisplayOrder { get; init; }
+    }
+
+    /// <summary>
+    /// Quote scoring template update request.
+    /// </summary>
+    public sealed class UpdateQuoteScoringTemplateRequest
+    {
+        /// <summary>
+        /// Gets or sets price weight.
+        /// </summary>
+        public decimal PriceWeight { get; set; }
+
+        /// <summary>
+        /// Gets or sets lead-time weight.
+        /// </summary>
+        public decimal LeadTimeWeight { get; set; }
+
+        /// <summary>
+        /// Gets or sets line-coverage weight.
+        /// </summary>
+        public decimal CoverageWeight { get; set; }
     }
 }
 #pragma warning restore CS1591

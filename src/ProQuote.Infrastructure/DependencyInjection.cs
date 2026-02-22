@@ -105,6 +105,8 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICommunicationService, CommunicationService>();
         services.AddScoped<IQuoteSubmissionService, QuoteSubmissionService>();
+        services.AddScoped<IQuoteComparisonCanonicalizationService, QuoteComparisonCanonicalizationService>();
+        services.AddScoped<IQuoteScoringTemplateService, QuoteScoringTemplateService>();
         services.AddScoped<IBuyerQuoteManagementService, BuyerQuoteManagementService>();
         services.AddScoped<IBuyerRfqInvitationService, BuyerRfqInvitationService>();
         services.AddScoped<IAuditLogService, AuditLogService>();
