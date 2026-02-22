@@ -37,6 +37,7 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
     public async Task<Rfq?> GetWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await DbSet
+            .Include(r => r.Buyer)
             .Include(r => r.Category)
             .Include(r => r.LineItems.OrderBy(li => li.DisplayOrder))
             .Include(r => r.Invitations)
@@ -57,6 +58,21 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
             .Include(r => r.Category)
             .Where(r => r.BuyerId == buyerId)
             .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Rfq>> GetByBuyerIdWithDetailsAsync(Guid buyerId, CancellationToken cancellationToken = default)
+    {
+        return await DbSet
+            .Where(r => r.BuyerId == buyerId)
+            .Include(r => r.Buyer)
+            .Include(r => r.Category)
+            .Include(r => r.Quotes)
+                .ThenInclude(q => q.Supplier)
+            .Include(r => r.Invitations)
+            .OrderByDescending(r => r.CreatedAt)
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
     }
 
@@ -103,6 +119,20 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
             .Where(r => r.Status == RfqStatus.Published &&
                         r.SubmissionDeadline < now &&
                         !r.Quotes.Any())
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Rfq>> GetAllWithDetailsAsync(CancellationToken cancellationToken = default)
+    {
+        return await DbSet
+            .Include(r => r.Buyer)
+            .Include(r => r.Category)
+            .Include(r => r.Quotes)
+                .ThenInclude(q => q.Supplier)
+            .Include(r => r.Invitations)
+            .OrderByDescending(r => r.CreatedAt)
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
     }
 

@@ -7,7 +7,6 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
 @using ProQuote.Infrastructure.Identity
-@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
 @inject UserManager<ApplicationUserIdentity> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ToastService ToastService
@@ -129,36 +128,28 @@
         _isLoading = true;
         try
         {
-            List<ApplicationUserIdentity> users = await DbContext.Users
+            List<ApplicationUserIdentity> users = await UserManager.Users
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
 
-            List<IdentityUserRole<Guid>> userRoles = await DbContext.UserRoles.ToListAsync();
-            List<ApplicationRoleIdentity> roles = await DbContext.Roles.ToListAsync();
-            Dictionary<Guid, string> roleByUserId = userRoles
-                .GroupBy(ur => ur.UserId)
-                .ToDictionary(
-                    g => g.Key,
-                    g =>
-                    {
-                        Guid roleId = g.First().RoleId;
-                        return roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? "-";
-                    });
-
-            IEnumerable<UserRow> query = users.Select(u =>
+            List<UserRow> userRows = [];
+            foreach (ApplicationUserIdentity user in users)
             {
-                string fullName = $"{u.FirstName} {u.LastName}".Trim();
-                return new UserRow
+                IList<string> roles = await UserManager.GetRolesAsync(user);
+                string fullName = $"{user.FirstName} {user.LastName}".Trim();
+                userRows.Add(new UserRow
                 {
-                    Id = u.Id,
-                    DisplayName = string.IsNullOrWhiteSpace(fullName) ? (u.UserName ?? u.Email ?? u.Id.ToString()) : fullName,
-                    Email = u.Email ?? "-",
-                    RoleLabel = roleByUserId.TryGetValue(u.Id, out string? roleName) ? roleName : "-",
-                    IsActive = u.IsActive,
-                    CreatedAt = u.CreatedAt,
-                    LastLoginAt = u.LastLoginAt
-                };
-            });
+                    Id = user.Id,
+                    DisplayName = string.IsNullOrWhiteSpace(fullName) ? (user.UserName ?? user.Email ?? user.Id.ToString()) : fullName,
+                    Email = user.Email ?? "-",
+                    RoleLabel = roles.FirstOrDefault() ?? "-",
+                    IsActive = user.IsActive,
+                    CreatedAt = user.CreatedAt,
+                    LastLoginAt = user.LastLoginAt
+                });
+            }
+
+            IEnumerable<UserRow> query = userRows;
 
             if (!string.IsNullOrWhiteSpace(_searchTerm))
             {

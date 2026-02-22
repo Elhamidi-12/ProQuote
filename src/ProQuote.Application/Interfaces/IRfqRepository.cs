@@ -35,6 +35,14 @@ public interface IRfqRepository : IRepository<Rfq>
     public Task<IReadOnlyList<Rfq>> GetByBuyerIdAsync(Guid buyerId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets all RFQs created by a specific buyer with related details used by reporting.
+    /// </summary>
+    /// <param name="buyerId">The buyer identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of RFQs with related details.</returns>
+    public Task<IReadOnlyList<Rfq>> GetByBuyerIdWithDetailsAsync(Guid buyerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all RFQs in a specific status.
     /// </summary>
     /// <param name="status">The RFQ status.</param>
@@ -65,6 +73,13 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of expired RFQs.</returns>
     public Task<IReadOnlyList<Rfq>> GetExpiredRfqsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all RFQs with related details used by admin dashboards and reports.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of RFQs with related details.</returns>
+    public Task<IReadOnlyList<Rfq>> GetAllWithDetailsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets RFQ documents ordered by display order.

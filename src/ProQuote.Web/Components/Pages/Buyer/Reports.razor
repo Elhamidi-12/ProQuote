@@ -4,8 +4,7 @@
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.EntityFrameworkCore
-@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IUnitOfWork UnitOfWork
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ToastService ToastService
 
@@ -151,13 +150,7 @@
                 return;
             }
 
-            List<Domain.Entities.Rfq> rfqs = await DbContext.Rfqs
-                .Where(r => r.BuyerId == buyerId.Value)
-                .Include(r => r.Category)
-                .Include(r => r.Quotes)
-                    .ThenInclude(q => q.Supplier)
-                .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
+            List<Domain.Entities.Rfq> rfqs = (await UnitOfWork.Rfqs.GetByBuyerIdWithDetailsAsync(buyerId.Value)).ToList();
 
             List<Domain.Entities.Quote> quotes = rfqs
                 .SelectMany(r => r.Quotes)

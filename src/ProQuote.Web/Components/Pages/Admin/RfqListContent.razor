@@ -1,5 +1,4 @@
-@using Microsoft.EntityFrameworkCore
-@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IUnitOfWork UnitOfWork
 @inject IAuditLogService AuditLogService
 @inject ToastService ToastService
 
@@ -129,11 +128,7 @@
         _isLoading = true;
         try
         {
-            IQueryable<Domain.Entities.Rfq> query = DbContext.Rfqs
-                .Include(r => r.Category)
-                .Include(r => r.Buyer)
-                .Include(r => r.Quotes)
-                .AsQueryable();
+            IEnumerable<Domain.Entities.Rfq> query = await UnitOfWork.Rfqs.GetAllWithDetailsAsync();
 
             if (ActiveOnly)
             {
@@ -146,7 +141,9 @@
             if (!string.IsNullOrWhiteSpace(_searchTerm))
             {
                 string term = _searchTerm.Trim();
-                query = query.Where(r => r.ReferenceNumber.Contains(term) || r.Title.Contains(term));
+                query = query.Where(r =>
+                    r.ReferenceNumber.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    r.Title.Contains(term, StringComparison.OrdinalIgnoreCase));
             }
 
             if (Enum.TryParse(_statusFilter, out Domain.Enums.RfqStatus parsedStatus))
@@ -154,9 +151,9 @@
                 query = query.Where(r => r.Status == parsedStatus);
             }
 
-            _rfqs = await query
+            _rfqs = query
                 .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -195,7 +192,7 @@
 
     private async Task CancelRfqAsync(Guid rfqId)
     {
-        Domain.Entities.Rfq? rfq = await DbContext.Rfqs.FirstOrDefaultAsync(r => r.Id == rfqId);
+        Domain.Entities.Rfq? rfq = await UnitOfWork.Rfqs.GetByIdAsync(rfqId);
         if (rfq == null || !rfq.CanBeCancelled())
         {
             return;
@@ -206,8 +203,8 @@
         {
             rfq.Status = Domain.Enums.RfqStatus.Cancelled;
             rfq.CancellationReason = "Cancelled by admin.";
-            DbContext.Rfqs.Update(rfq);
-            await DbContext.SaveChangesAsync();
+            UnitOfWork.Rfqs.Update(rfq);
+            await UnitOfWork.SaveChangesAsync();
 
             await AuditLogService.LogRfqActionAsync(
                 rfq.Id,
@@ -236,7 +233,7 @@
         string auditAction,
         string details)
     {
-        Domain.Entities.Rfq? rfq = await DbContext.Rfqs.FirstOrDefaultAsync(r => r.Id == rfqId);
+        Domain.Entities.Rfq? rfq = await UnitOfWork.Rfqs.GetByIdAsync(rfqId);
         if (rfq == null)
         {
             return;
@@ -251,8 +248,8 @@
                 rfq.ClosedAt = DateTime.UtcNow;
             }
 
-            DbContext.Rfqs.Update(rfq);
-            await DbContext.SaveChangesAsync();
+            UnitOfWork.Rfqs.Update(rfq);
+            await UnitOfWork.SaveChangesAsync();
 
             await AuditLogService.LogRfqActionAsync(
                 rfq.Id,

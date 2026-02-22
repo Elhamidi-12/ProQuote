@@ -4,8 +4,9 @@
 @attribute [Authorize(Roles = ApplicationRoles.Supplier)]
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.EntityFrameworkCore
-@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@using ProQuote.Application.DTOs.Quotes
+@inject IQuoteSubmissionService QuoteSubmissionService
+@inject IUnitOfWork UnitOfWork
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ToastService ToastService
 
@@ -65,11 +66,11 @@
             {
                 <div style="margin-top:var(--pq-space-3);">
                     <PqTable Headers="_quoteHeaders">
-                        @foreach (Domain.Entities.Quote quote in _recentQuotes)
+                        @foreach (SupplierQuoteListItemDto quote in _recentQuotes)
                         {
                             <tr>
-                                <td>@quote.Rfq.ReferenceNumber</td>
-                                <td>@quote.Rfq.Title</td>
+                                <td>@quote.ReferenceNumber</td>
+                                <td>@quote.Title</td>
                                 <td><PqBadge Variant="@GetQuoteVariant(quote)">@GetQuoteLabel(quote)</PqBadge></td>
                                 <td>@quote.TotalAmount.ToString("N2")</td>
                                 <td>@quote.SubmittedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
@@ -91,14 +92,14 @@
             {
                 <div style="margin-top:var(--pq-space-3);">
                     <PqTable Headers="_invitationHeaders">
-                        @foreach (Domain.Entities.RfqInvitation invitation in _upcomingInvitations)
+                        @foreach (SupplierInvitationItemDto invitation in _upcomingInvitations)
                         {
                             <tr>
-                                <td>@invitation.Rfq.ReferenceNumber</td>
-                                <td>@invitation.Rfq.Title</td>
+                                <td>@invitation.ReferenceNumber</td>
+                                <td>@invitation.Title</td>
                                 <td><PqBadge Variant="@GetInvitationVariant(invitation.Status)">@invitation.Status</PqBadge></td>
-                                <td>@invitation.Rfq.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
-                                <td>@(invitation.Rfq.SubmissionDeadline > DateTime.UtcNow ? Math.Ceiling((invitation.Rfq.SubmissionDeadline - DateTime.UtcNow).TotalDays).ToString("N0") : "0")</td>
+                                <td>@invitation.SubmissionDeadline.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                                <td>@(invitation.SubmissionDeadline > DateTime.UtcNow ? Math.Ceiling((invitation.SubmissionDeadline - DateTime.UtcNow).TotalDays).ToString("N0") : "0")</td>
                             </tr>
                         }
                     </PqTable>
@@ -111,8 +112,8 @@
 @code {
     private bool _isLoading = true;
     private PerformanceStats _stats = new();
-    private List<Domain.Entities.Quote> _recentQuotes = [];
-    private List<Domain.Entities.RfqInvitation> _upcomingInvitations = [];
+    private List<SupplierQuoteListItemDto> _recentQuotes = [];
+    private List<SupplierInvitationItemDto> _upcomingInvitations = [];
 
     private readonly List<PqTable.TableColumn> _quoteHeaders =
     [
@@ -150,8 +151,7 @@
                 return;
             }
 
-            Domain.Entities.Supplier? supplier = await DbContext.Suppliers
-                .FirstOrDefaultAsync(s => s.UserId == supplierUserId.Value);
+            Domain.Entities.Supplier? supplier = await UnitOfWork.Suppliers.GetByUserIdAsync(supplierUserId.Value);
 
             if (supplier == null)
             {
@@ -159,17 +159,8 @@
                 return;
             }
 
-            List<Domain.Entities.RfqInvitation> invitations = await DbContext.RfqInvitations
-                .Where(i => i.SupplierId == supplier.Id)
-                .Include(i => i.Rfq)
-                .OrderByDescending(i => i.SentAt)
-                .ToListAsync();
-
-            List<Domain.Entities.Quote> quotes = await DbContext.Quotes
-                .Where(q => q.SupplierId == supplier.Id)
-                .Include(q => q.Rfq)
-                .OrderByDescending(q => q.SubmittedAt)
-                .ToListAsync();
+            List<SupplierInvitationItemDto> invitations = (await QuoteSubmissionService.GetSupplierInvitationsAsync(supplierUserId.Value)).ToList();
+            List<SupplierQuoteListItemDto> quotes = (await QuoteSubmissionService.GetSupplierQuotesAsync(supplierUserId.Value)).ToList();
 
             int totalInvitations = invitations.Count;
             int submittedQuotes = quotes.Count(q => q.Status == Domain.Enums.QuoteStatus.Submitted || q.Status == Domain.Enums.QuoteStatus.Awarded || q.Status == Domain.Enums.QuoteStatus.Rejected);
@@ -204,8 +195,8 @@
             _upcomingInvitations = invitations
                 .Where(i =>
                     (i.Status == Domain.Enums.InvitationStatus.Sent || i.Status == Domain.Enums.InvitationStatus.Viewed) &&
-                    i.Rfq.SubmissionDeadline > DateTime.UtcNow)
-                .OrderBy(i => i.Rfq.SubmissionDeadline)
+                    i.SubmissionDeadline > DateTime.UtcNow)
+                .OrderBy(i => i.SubmissionDeadline)
                 .Take(10)
                 .ToList();
         }
@@ -226,12 +217,12 @@
         return Guid.TryParse(userId, out Guid parsedUserId) ? parsedUserId : null;
     }
 
-    private static string GetQuoteLabel(Domain.Entities.Quote quote)
+    private static string GetQuoteLabel(SupplierQuoteListItemDto quote)
     {
         return (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded) ? "Awarded" : quote.Status.ToString();
     }
 
-    private static string GetQuoteVariant(Domain.Entities.Quote quote)
+    private static string GetQuoteVariant(SupplierQuoteListItemDto quote)
     {
         if (quote.IsAwarded || quote.Status == Domain.Enums.QuoteStatus.Awarded)
         {

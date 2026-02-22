@@ -2,8 +2,7 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
-@using Microsoft.EntityFrameworkCore
-@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IUnitOfWork UnitOfWork
 @inject ToastService ToastService
 
 <PageTitle>Admin Reports - ProQuote</PageTitle>
@@ -144,19 +143,9 @@
         _isLoading = true;
         try
         {
-            List<Domain.Entities.Rfq> rfqs = await DbContext.Rfqs
-                .Include(r => r.Category)
-                .Include(r => r.Buyer)
-                .Include(r => r.Quotes)
-                .Include(r => r.Invitations)
-                .ToListAsync();
-
-            List<Domain.Entities.Quote> quotes = await DbContext.Quotes
-                .Include(q => q.Rfq)
-                .Include(q => q.Supplier)
-                .ToListAsync();
-
-            List<Domain.Entities.Supplier> suppliers = await DbContext.Suppliers.ToListAsync();
+            List<Domain.Entities.Rfq> rfqs = (await UnitOfWork.Rfqs.GetAllWithDetailsAsync()).ToList();
+            List<Domain.Entities.Quote> quotes = rfqs.SelectMany(r => r.Quotes).ToList();
+            List<Domain.Entities.Supplier> suppliers = (await UnitOfWork.Suppliers.GetAllAsync()).ToList();
 
             int totalRfqs = rfqs.Count;
             int openRfqs = rfqs.Count(r => r.Status == Domain.Enums.RfqStatus.Published ||
