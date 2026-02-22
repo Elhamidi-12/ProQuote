@@ -59,6 +59,16 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
         builder.Property(q => q.BuyerNotes)
             .HasMaxLength(2000);
 
+        builder.Property(q => q.SubmissionQualityScore);
+
+        builder.Property(q => q.SubmissionCompletenessScore);
+
+        builder.Property(q => q.SubmissionLeadTimeScore);
+
+        builder.Property(q => q.SubmissionCommercialScore);
+
+        builder.Property(q => q.SubmissionQualityScoredAt);
+
         #endregion
 
         #region Indexes
@@ -86,6 +96,11 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
         builder.HasMany(q => q.Documents)
             .WithOne(d => d.Quote)
             .HasForeignKey(d => d.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(q => q.QualityHistory)
+            .WithOne(h => h.Quote)
+            .HasForeignKey(h => h.QuoteId)
             .OnDelete(DeleteBehavior.Cascade);
 
         #endregion

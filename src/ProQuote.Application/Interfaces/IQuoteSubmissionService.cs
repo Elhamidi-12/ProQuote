@@ -43,4 +43,13 @@ public interface IQuoteSubmissionService
     /// <param name="request">Quote save request.</param>
     /// <returns>Save response.</returns>
     public Task<QuoteSaveResponse> SaveQuoteAsync(Guid supplierUserId, SaveQuoteRequest request);
+
+    /// <summary>
+    /// Recalculates and persists quality score snapshot for an existing supplier quote.
+    /// </summary>
+    /// <param name="supplierUserId">Supplier user identifier.</param>
+    /// <param name="quoteId">Quote identifier.</param>
+    /// <param name="eventType">Optional event type label for timeline history.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public Task RecalculateQuoteQualitySnapshotAsync(Guid supplierUserId, Guid quoteId, string? eventType = null);
 }

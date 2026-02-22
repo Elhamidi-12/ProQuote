@@ -73,6 +73,31 @@ public class Quote : BaseEntity
     /// </summary>
     public string? BuyerNotes { get; set; }
 
+    /// <summary>
+    /// Gets or sets the overall quality score snapshot captured at submission time.
+    /// </summary>
+    public int? SubmissionQualityScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets the completeness quality score snapshot captured at submission time.
+    /// </summary>
+    public int? SubmissionCompletenessScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets the lead-time quality score snapshot captured at submission time.
+    /// </summary>
+    public int? SubmissionLeadTimeScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets the commercial-readiness quality score snapshot captured at submission time.
+    /// </summary>
+    public int? SubmissionCommercialScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets the UTC timestamp when submission quality was last calculated.
+    /// </summary>
+    public DateTime? SubmissionQualityScoredAt { get; set; }
+
     #endregion
 
     #region Navigation Properties
@@ -96,6 +121,11 @@ public class Quote : BaseEntity
     /// Gets or sets the collection of documents attached to this quote.
     /// </summary>
     public virtual ICollection<QuoteDocument> Documents { get; set; } = new List<QuoteDocument>();
+
+    /// <summary>
+    /// Gets or sets historical quality snapshots for this quote.
+    /// </summary>
+    public virtual ICollection<QuoteQualityHistory> QualityHistory { get; set; } = new List<QuoteQualityHistory>();
 
     #endregion
 

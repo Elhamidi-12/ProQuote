@@ -265,6 +265,16 @@ public class QuoteSubmissionService : IQuoteSubmissionService
         }
 
         quote.CalculateTotalAmount();
+        bool hasSupportingDocuments = !isNewQuote && await _context.QuoteDocuments.AnyAsync(d => d.QuoteId == quote.Id);
+        QuoteQualitySnapshot qualitySnapshot = BuildQualitySnapshot(
+            quote,
+            rfqLineItems.Count,
+            invitation.Rfq.SubmissionDeadline,
+            hasSupportingDocuments);
+        ApplyQualitySnapshot(
+            quote,
+            qualitySnapshot,
+            isNewQuote ? QuoteQualityEventTypes.Submitted : QuoteQualityEventTypes.Updated);
 
         invitation.MarkAsQuoted();
         _context.RfqInvitations.Update(invitation);
@@ -307,5 +317,157 @@ public class QuoteSubmissionService : IQuoteSubmissionService
                 : $"Supplier updated quote {quote.Id} for RFQ {invitation.Rfq.ReferenceNumber}.");
 
         return QuoteSaveResponse.Success(quote.Id);
+    }
+
+    /// <inheritdoc />
+    public async Task RecalculateQuoteQualitySnapshotAsync(Guid supplierUserId, Guid quoteId, string? eventType = null)
+    {
+        Supplier? supplier = await _context.Suppliers.FirstOrDefaultAsync(s => s.UserId == supplierUserId);
+        if (supplier == null)
+        {
+            return;
+        }
+
+        Quote? quote = await _context.Quotes
+            .Include(q => q.LineItems)
+            .Include(q => q.Rfq)
+            .FirstOrDefaultAsync(q => q.Id == quoteId && q.SupplierId == supplier.Id);
+
+        if (quote == null)
+        {
+            return;
+        }
+
+        int totalRfqLineItems = await _context.LineItems.CountAsync(li => li.RfqId == quote.RfqId);
+        bool hasSupportingDocuments = await _context.QuoteDocuments.AnyAsync(d => d.QuoteId == quote.Id);
+
+        QuoteQualitySnapshot qualitySnapshot = BuildQualitySnapshot(
+            quote,
+            totalRfqLineItems,
+            quote.Rfq.SubmissionDeadline,
+            hasSupportingDocuments);
+        ApplyQualitySnapshot(quote, qualitySnapshot, eventType ?? QuoteQualityEventTypes.Recalculated);
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static QuoteQualitySnapshot BuildQualitySnapshot(
+        Quote quote,
+        int totalRfqLineItems,
+        DateTime rfqSubmissionDeadline,
+        bool hasSupportingDocuments)
+    {
+        int quotedLineItems = quote.LineItems.Count(li => li.UnitPrice > 0m);
+        int completenessScore = totalRfqLineItems == 0
+            ? 0
+            : (int)Math.Round(quotedLineItems * 100d / totalRfqLineItems);
+
+        int leadTimeScore;
+        if (quote.LeadTimeDays < 0)
+        {
+            leadTimeScore = 0;
+        }
+        else if (quote.LeadTimeDays <= 7)
+        {
+            leadTimeScore = 100;
+        }
+        else if (quote.LeadTimeDays <= 14)
+        {
+            leadTimeScore = 85;
+        }
+        else if (quote.LeadTimeDays <= 21)
+        {
+            leadTimeScore = 70;
+        }
+        else if (quote.LeadTimeDays <= 30)
+        {
+            leadTimeScore = 55;
+        }
+        else if (quote.LeadTimeDays <= 45)
+        {
+            leadTimeScore = 40;
+        }
+        else
+        {
+            leadTimeScore = 25;
+        }
+
+        bool hasPaymentTerms = !string.IsNullOrWhiteSpace(quote.PaymentTerms);
+        bool validUntilAfterDeadline = quote.ValidUntil >= rfqSubmissionDeadline;
+
+        int commercialScore = 0;
+        commercialScore += hasPaymentTerms ? 40 : 0;
+        commercialScore += hasSupportingDocuments ? 30 : 0;
+        commercialScore += validUntilAfterDeadline ? 30 : 0;
+
+        int overallScore = (int)Math.Round((completenessScore * 0.5) + (leadTimeScore * 0.25) + (commercialScore * 0.25));
+
+        return new QuoteQualitySnapshot(
+            Math.Clamp(overallScore, 0, 100),
+            Math.Clamp(completenessScore, 0, 100),
+            Math.Clamp(leadTimeScore, 0, 100),
+            Math.Clamp(commercialScore, 0, 100));
+    }
+
+    private void ApplyQualitySnapshot(Quote quote, QuoteQualitySnapshot qualitySnapshot, string eventType)
+    {
+        bool hasScoreChanged =
+            quote.SubmissionQualityScore != qualitySnapshot.OverallScore ||
+            quote.SubmissionCompletenessScore != qualitySnapshot.CompletenessScore ||
+            quote.SubmissionLeadTimeScore != qualitySnapshot.LeadTimeScore ||
+            quote.SubmissionCommercialScore != qualitySnapshot.CommercialScore;
+
+        bool hasPreviousSnapshot =
+            quote.SubmissionQualityScore.HasValue ||
+            quote.SubmissionCompletenessScore.HasValue ||
+            quote.SubmissionLeadTimeScore.HasValue ||
+            quote.SubmissionCommercialScore.HasValue;
+
+        DateTime scoredAt = DateTime.UtcNow;
+        quote.SubmissionQualityScore = qualitySnapshot.OverallScore;
+        quote.SubmissionCompletenessScore = qualitySnapshot.CompletenessScore;
+        quote.SubmissionLeadTimeScore = qualitySnapshot.LeadTimeScore;
+        quote.SubmissionCommercialScore = qualitySnapshot.CommercialScore;
+        quote.SubmissionQualityScoredAt = scoredAt;
+
+        if (!hasPreviousSnapshot || hasScoreChanged)
+        {
+            _context.QuoteQualityHistory.Add(new QuoteQualityHistory
+            {
+                Id = Guid.NewGuid(),
+                QuoteId = quote.Id,
+                OverallScore = qualitySnapshot.OverallScore,
+                CompletenessScore = qualitySnapshot.CompletenessScore,
+                LeadTimeScore = qualitySnapshot.LeadTimeScore,
+                CommercialScore = qualitySnapshot.CommercialScore,
+                EventType = NormalizeEventType(eventType),
+                ScoredAt = scoredAt,
+                CreatedAt = scoredAt
+            });
+        }
+    }
+
+    private static string NormalizeEventType(string? eventType)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+        {
+            return QuoteQualityEventTypes.Recalculated;
+        }
+
+        string value = eventType.Trim();
+        return value.Length <= 64 ? value : value[..64];
+    }
+
+    private readonly record struct QuoteQualitySnapshot(
+        int OverallScore,
+        int CompletenessScore,
+        int LeadTimeScore,
+        int CommercialScore);
+
+    private static class QuoteQualityEventTypes
+    {
+        public const string Submitted = "Submitted";
+        public const string Updated = "Updated";
+        public const string Recalculated = "Recalculated";
     }
 }

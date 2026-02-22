@@ -208,6 +208,73 @@ public sealed class BuyerQuoteComparisonItemDto
     /// Gets or sets quote score breakdown.
     /// </summary>
     public QuoteScoreBreakdownDto Score { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets submission quality overall score snapshot.
+    /// </summary>
+    public int? SubmissionQualityScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets submission quality completeness score snapshot.
+    /// </summary>
+    public int? SubmissionCompletenessScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets submission quality lead-time score snapshot.
+    /// </summary>
+    public int? SubmissionLeadTimeScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets submission quality commercial score snapshot.
+    /// </summary>
+    public int? SubmissionCommercialScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets UTC timestamp for quality snapshot calculation.
+    /// </summary>
+    public DateTime? SubmissionQualityScoredAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets quality timeline entries for this quote.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Mutable list simplifies Blazor/API serialization.")]
+    public List<QuoteQualityTimelineEntryDto> QualityTimeline { get; set; } = [];
+}
+
+/// <summary>
+/// Historical quality timeline entry for a quote.
+/// </summary>
+public sealed class QuoteQualityTimelineEntryDto
+{
+    /// <summary>
+    /// Gets or sets the trigger event type for this snapshot.
+    /// </summary>
+    public string EventType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the overall quality score.
+    /// </summary>
+    public int OverallScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets completeness quality score.
+    /// </summary>
+    public int CompletenessScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets lead-time quality score.
+    /// </summary>
+    public int LeadTimeScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets commercial quality score.
+    /// </summary>
+    public int CommercialScore { get; set; }
+
+    /// <summary>
+    /// Gets or sets UTC timestamp when this score was captured.
+    /// </summary>
+    public DateTime ScoredAt { get; set; }
 }
 
 /// <summary>

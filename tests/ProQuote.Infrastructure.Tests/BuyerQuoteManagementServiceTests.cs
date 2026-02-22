@@ -67,6 +67,62 @@ public class BuyerQuoteManagementServiceTests
         Assert.Equal(RfqStatus.QuotesReceived, unchangedRfq!.Status);
     }
 
+    [Fact]
+    public async Task GetComparisonAsync_ShouldIncludeQualityTimeline_ForQuote()
+    {
+        using var context = TestDbContextFactory.Create(Guid.NewGuid().ToString());
+
+        (ApplicationUserIdentity buyer, Rfq rfq, Quote winningQuote, _) = await SeedAwardScenarioAsync(context);
+
+        DateTime now = DateTime.UtcNow;
+        winningQuote.SubmissionQualityScore = 84;
+        winningQuote.SubmissionCompletenessScore = 90;
+        winningQuote.SubmissionLeadTimeScore = 85;
+        winningQuote.SubmissionCommercialScore = 70;
+        winningQuote.SubmissionQualityScoredAt = now;
+
+        await context.QuoteQualityHistory.AddRangeAsync(
+            new QuoteQualityHistory
+            {
+                Id = Guid.NewGuid(),
+                QuoteId = winningQuote.Id,
+                OverallScore = 70,
+                CompletenessScore = 100,
+                LeadTimeScore = 55,
+                CommercialScore = 40,
+                EventType = "Updated",
+                ScoredAt = now.AddMinutes(-20),
+                CreatedAt = now.AddMinutes(-20)
+            },
+            new QuoteQualityHistory
+            {
+                Id = Guid.NewGuid(),
+                QuoteId = winningQuote.Id,
+                OverallScore = 84,
+                CompletenessScore = 90,
+                LeadTimeScore = 85,
+                CommercialScore = 70,
+                EventType = "DocumentsUpdated",
+                ScoredAt = now,
+                CreatedAt = now
+            });
+        await context.SaveChangesAsync();
+
+        AuditLogService auditLogService = new(context);
+        QuoteComparisonCanonicalizationService canonicalizationService = new();
+        QuoteScoringTemplateService quoteScoringTemplateService = new(context);
+        BuyerQuoteManagementService service = new(context, auditLogService, canonicalizationService, quoteScoringTemplateService);
+
+        var comparison = await service.GetComparisonAsync(buyer.Id, rfq.Id);
+
+        Assert.NotNull(comparison);
+        var mappedQuote = comparison!.Quotes.First(q => q.QuoteId == winningQuote.Id);
+        Assert.Equal(2, mappedQuote.QualityTimeline.Count);
+        Assert.Equal("DocumentsUpdated", mappedQuote.QualityTimeline[0].EventType);
+        Assert.Equal("Updated", mappedQuote.QualityTimeline[1].EventType);
+        Assert.Equal(84, mappedQuote.QualityTimeline[0].OverallScore);
+    }
+
     private static async Task<(ApplicationUserIdentity Buyer, Rfq Rfq, Quote WinningQuote, Quote LosingQuote)>
         SeedAwardScenarioAsync(Infrastructure.Data.AppDbContext context)
     {

@@ -368,6 +368,10 @@ else
             }
 
             await SavePendingDocumentsAsync(response.QuoteId.Value);
+            await QuoteSubmissionService.RecalculateQuoteQualitySnapshotAsync(
+                _currentUserId.Value,
+                response.QuoteId.Value,
+                "DocumentsUpdated");
 
             ToastService.ShowSuccess("Quote submitted successfully.");
             NavigationManager.NavigateTo("/supplier/quotes");
@@ -486,6 +490,14 @@ else
             .Where(d => d.Id != documentId)
             .OrderBy(d => d.DisplayOrder)
             .ToList();
+
+        if (_currentUserId.HasValue)
+        {
+            await QuoteSubmissionService.RecalculateQuoteQualitySnapshotAsync(
+                _currentUserId.Value,
+                existing.QuoteId,
+                "DocumentRemoved");
+        }
 
         ToastService.ShowSuccess("Document removed.");
     }

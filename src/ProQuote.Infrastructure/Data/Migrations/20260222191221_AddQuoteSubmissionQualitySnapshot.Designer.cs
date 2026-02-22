@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProQuote.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using ProQuote.Infrastructure.Data;
 namespace ProQuote.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260222191221_AddQuoteSubmissionQualitySnapshot")]
+    partial class AddQuoteSubmissionQualitySnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -587,50 +590,6 @@ namespace ProQuote.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("QuoteLineItems", (string)null);
-                });
-
-            modelBuilder.Entity("ProQuote.Domain.Entities.QuoteQualityHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("CommercialScore")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CompletenessScore")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<int>("LeadTimeScore")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("OverallScore")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("QuoteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("ScoredAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuoteId");
-
-                    b.HasIndex("ScoredAt");
-
-                    b.ToTable("QuoteQualityHistory", (string)null);
                 });
 
             modelBuilder.Entity("ProQuote.Domain.Entities.QuoteScoringTemplate", b =>
@@ -1354,17 +1313,6 @@ namespace ProQuote.Infrastructure.Data.Migrations
                     b.Navigation("Quote");
                 });
 
-            modelBuilder.Entity("ProQuote.Domain.Entities.QuoteQualityHistory", b =>
-                {
-                    b.HasOne("ProQuote.Domain.Entities.Quote", "Quote")
-                        .WithMany("QualityHistory")
-                        .HasForeignKey("QuoteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Quote");
-                });
-
             modelBuilder.Entity("ProQuote.Domain.Entities.QuoteScoringTemplate", b =>
                 {
                     b.HasOne("ProQuote.Domain.Entities.Rfq", "Rfq")
@@ -1490,8 +1438,6 @@ namespace ProQuote.Infrastructure.Data.Migrations
                     b.Navigation("Documents");
 
                     b.Navigation("LineItems");
-
-                    b.Navigation("QualityHistory");
                 });
 
             modelBuilder.Entity("ProQuote.Domain.Entities.Rfq", b =>

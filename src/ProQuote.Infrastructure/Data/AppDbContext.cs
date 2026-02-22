@@ -104,6 +104,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUserIdentity, Applicati
     /// </summary>
     public DbSet<QuoteScoringTemplate> QuoteScoringTemplates => Set<QuoteScoringTemplate>();
 
+    /// <summary>
+    /// Gets or sets historical quote quality snapshots.
+    /// </summary>
+    public DbSet<QuoteQualityHistory> QuoteQualityHistory => Set<QuoteQualityHistory>();
+
     #endregion
 
     #region Methods

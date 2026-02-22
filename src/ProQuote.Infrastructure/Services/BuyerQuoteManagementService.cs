@@ -78,6 +78,8 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
                 .ThenInclude(q => q.LineItems)
             .Include(r => r.Quotes)
                 .ThenInclude(q => q.Documents.OrderBy(d => d.DisplayOrder))
+            .Include(r => r.Quotes)
+                .ThenInclude(q => q.QualityHistory.OrderByDescending(h => h.ScoredAt))
             .FirstOrDefaultAsync(r => r.Id == rfqId && r.BuyerId == buyerUserId);
 
         if (rfq == null)
@@ -127,6 +129,23 @@ public class BuyerQuoteManagementService : IBuyerQuoteManagementService
                 PaymentTerms = q.PaymentTerms,
                 Notes = q.Notes,
                 BuyerNotes = q.BuyerNotes,
+                SubmissionQualityScore = q.SubmissionQualityScore,
+                SubmissionCompletenessScore = q.SubmissionCompletenessScore,
+                SubmissionLeadTimeScore = q.SubmissionLeadTimeScore,
+                SubmissionCommercialScore = q.SubmissionCommercialScore,
+                SubmissionQualityScoredAt = q.SubmissionQualityScoredAt,
+                QualityTimeline = q.QualityHistory
+                    .OrderByDescending(h => h.ScoredAt)
+                    .Select(h => new QuoteQualityTimelineEntryDto
+                    {
+                        EventType = h.EventType,
+                        OverallScore = h.OverallScore,
+                        CompletenessScore = h.CompletenessScore,
+                        LeadTimeScore = h.LeadTimeScore,
+                        CommercialScore = h.CommercialScore,
+                        ScoredAt = h.ScoredAt
+                    })
+                    .ToList(),
                 Prices = q.LineItems
                     .Select(li => new BuyerQuoteComparisonPriceDto
                     {

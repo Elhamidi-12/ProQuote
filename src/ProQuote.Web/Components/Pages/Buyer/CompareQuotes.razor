@@ -116,6 +116,18 @@ else
                         <td>@quote.TotalAmount.ToString("N2") @_comparison.Currency</td>
                         <td>@quote.LeadTimeDays days</td>
                         <td>@quote.Score.CompositeScore.ToString("N2")</td>
+                        <td>
+                            @if (quote.SubmissionQualityScore.HasValue)
+                            {
+                                <PqBadge Variant="@GetQualityBadgeVariant(quote.SubmissionQualityScore.Value)">
+                                    @quote.SubmissionQualityScore.Value%
+                                </PqBadge>
+                            }
+                            else
+                            {
+                                <span class="pq-body-sm">-</span>
+                            }
+                        </td>
                         <td>@quote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</td>
                         <td><PqBadge Variant="@GetQuoteBadgeVariant(quote)">@GetQuoteLabel(quote)</PqBadge></td>
                         <td>
@@ -147,6 +159,20 @@ else
                     <PqBadge Variant="published">Valid Until: @SelectedQuote.ValidUntil.ToLocalTime().ToString("MMM dd, yyyy")</PqBadge>
                     <PqBadge Variant="awarded">Total: @SelectedQuote.TotalAmount.ToString("N2") @_comparison.Currency</PqBadge>
                     <PqBadge Variant="primary">Score: @SelectedQuote.Score.CompositeScore.ToString("N2")</PqBadge>
+                    @if (SelectedQuote.SubmissionQualityScore.HasValue)
+                    {
+                        <PqBadge Variant="@GetQualityBadgeVariant(SelectedQuote.SubmissionQualityScore.Value)">
+                            Submission Quality: @SelectedQuote.SubmissionQualityScore.Value%
+                        </PqBadge>
+                    }
+                    @if (SelectedQuote.SubmissionCompletenessScore.HasValue &&
+                        SelectedQuote.SubmissionLeadTimeScore.HasValue &&
+                        SelectedQuote.SubmissionCommercialScore.HasValue)
+                    {
+                        <PqBadge Variant="secondary">
+                            C:@SelectedQuote.SubmissionCompletenessScore% / L:@SelectedQuote.SubmissionLeadTimeScore% / M:@SelectedQuote.SubmissionCommercialScore%
+                        </PqBadge>
+                    }
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(SelectedQuote.PaymentTerms))
@@ -160,6 +186,35 @@ else
                 @if (!string.IsNullOrWhiteSpace(SelectedQuote.BuyerNotes))
                 {
                     <p class="pq-body-sm" style="margin-top:var(--pq-space-2);"><strong>Buyer Notes:</strong> @SelectedQuote.BuyerNotes</p>
+                }
+                @if (SelectedQuote.QualityTimeline.Count > 0)
+                {
+                    <div style="margin-top:var(--pq-space-3);">
+                        <p class="pq-body-sm"><strong>Quality Timeline</strong></p>
+                        <PqTable Headers="_qualityTimelineHeaders">
+                            @for (int index = 0; index < SelectedQuote.QualityTimeline.Count; index++)
+                            {
+                                QuoteQualityTimelineEntryDto entry = SelectedQuote.QualityTimeline[index];
+                                int? previousScore = index < SelectedQuote.QualityTimeline.Count - 1
+                                    ? SelectedQuote.QualityTimeline[index + 1].OverallScore
+                                    : null;
+
+                                <tr>
+                                    <td>@entry.ScoredAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                                    <td>@FormatQualityEventType(entry.EventType)</td>
+                                    <td>
+                                        <PqBadge Variant="@GetQualityBadgeVariant(entry.OverallScore)">
+                                            @entry.OverallScore%
+                                        </PqBadge>
+                                    </td>
+                                    <td>@FormatScoreDelta(entry.OverallScore, previousScore)</td>
+                                    <td>@entry.CompletenessScore%</td>
+                                    <td>@entry.LeadTimeScore%</td>
+                                    <td>@entry.CommercialScore%</td>
+                                </tr>
+                            }
+                        </PqTable>
+                    </div>
                 }
                 @if (SelectedQuote.Documents.Count > 0)
                 {
@@ -219,6 +274,7 @@ else
         new() { Label = "Total", Field = "total" },
         new() { Label = "Lead Time", Field = "leadTime" },
         new() { Label = "Score", Field = "score" },
+        new() { Label = "Quality", Field = "quality", Width = "120px" },
         new() { Label = "Valid Until", Field = "validUntil" },
         new() { Label = "Status", Field = "status" },
         new() { Label = "Actions", Field = "actions", Width = "220px" }
@@ -230,6 +286,17 @@ else
         new() { Label = "Requested Qty", Field = "quantity" },
         new() { Label = "Unit Price", Field = "unitPrice" },
         new() { Label = "Line Total", Field = "lineTotal" }
+    ];
+
+    private readonly List<PqTable.TableColumn> _qualityTimelineHeaders =
+    [
+        new() { Label = "Scored At", Field = "scoredAt", Width = "170px" },
+        new() { Label = "Event", Field = "event", Width = "150px" },
+        new() { Label = "Overall", Field = "overall", Width = "120px" },
+        new() { Label = "Delta", Field = "delta", Width = "90px" },
+        new() { Label = "Completeness", Field = "completeness", Width = "120px" },
+        new() { Label = "Lead", Field = "lead", Width = "90px" },
+        new() { Label = "Commercial", Field = "commercial", Width = "110px" }
     ];
 
     private BuyerQuoteComparisonItemDto? SelectedQuote =>
@@ -487,6 +554,50 @@ else
         }
 
         return quote.Status.ToString();
+    }
+
+    private static string GetQualityBadgeVariant(int score)
+    {
+        if (score >= 85)
+        {
+            return "awarded";
+        }
+
+        if (score >= 60)
+        {
+            return "pending";
+        }
+
+        return "expired";
+    }
+
+    private static string FormatQualityEventType(string? eventType)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+        {
+            return "Recalculated";
+        }
+
+        return eventType switch
+        {
+            "Submitted" => "Submitted",
+            "Updated" => "Quote Updated",
+            "DocumentsUpdated" => "Documents Updated",
+            "DocumentRemoved" => "Document Removed",
+            "Recalculated" => "Recalculated",
+            _ => eventType
+        };
+    }
+
+    private static string FormatScoreDelta(int currentScore, int? previousScore)
+    {
+        if (!previousScore.HasValue)
+        {
+            return "-";
+        }
+
+        int delta = currentScore - previousScore.Value;
+        return delta == 0 ? "0" : delta > 0 ? $"+{delta}" : delta.ToString(CultureInfo.InvariantCulture);
     }
 
     private static string FormatFileSize(long bytes)

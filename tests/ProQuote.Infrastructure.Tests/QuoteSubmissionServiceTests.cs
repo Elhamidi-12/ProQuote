@@ -43,6 +43,14 @@ public class QuoteSubmissionServiceTests
         QuoteSaveResponse response = await service.SaveQuoteAsync(supplierUser.Id, request);
 
         Quote? savedQuote = await context.Quotes.FirstOrDefaultAsync(q => q.RfqId == rfq.Id && q.SupplierId == supplier.Id);
+        List<QuoteQualityHistory> qualityHistory = [];
+        if (savedQuote is not null)
+        {
+            qualityHistory = await context.QuoteQualityHistory
+                .Where(h => h.QuoteId == savedQuote.Id)
+                .OrderBy(h => h.ScoredAt)
+                .ToListAsync();
+        }
         RfqInvitation? updatedInvitation = await context.RfqInvitations.FirstOrDefaultAsync(i => i.RfqId == rfq.Id && i.SupplierId == supplier.Id);
         Rfq? updatedRfq = await context.Rfqs.FirstOrDefaultAsync(r => r.Id == rfq.Id);
         AuditLog? audit = await context.AuditLogs.FirstOrDefaultAsync(a => a.RfqId == rfq.Id && a.Action == "QuoteSubmitted");
@@ -50,6 +58,14 @@ public class QuoteSubmissionServiceTests
         Assert.True(response.Succeeded);
         Assert.NotNull(savedQuote);
         Assert.Equal(120m * lineItem.Quantity, savedQuote!.TotalAmount);
+        Assert.Equal(89, savedQuote.SubmissionQualityScore);
+        Assert.Equal(100, savedQuote.SubmissionCompletenessScore);
+        Assert.Equal(85, savedQuote.SubmissionLeadTimeScore);
+        Assert.Equal(70, savedQuote.SubmissionCommercialScore);
+        Assert.NotNull(savedQuote.SubmissionQualityScoredAt);
+        Assert.Single(qualityHistory);
+        Assert.Equal("Submitted", qualityHistory[0].EventType);
+        Assert.Equal(savedQuote.SubmissionQualityScore, qualityHistory[0].OverallScore);
         Assert.Equal(InvitationStatus.Quoted, updatedInvitation!.Status);
         Assert.Equal(RfqStatus.QuotesReceived, updatedRfq!.Status);
         Assert.NotNull(audit);
@@ -85,6 +101,78 @@ public class QuoteSubmissionServiceTests
 
         Assert.False(response.Succeeded);
         Assert.Contains("deadline", response.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RecalculateQuoteQualitySnapshotAsync_ShouldIncludeSupportingDocuments()
+    {
+        using var context = TestDbContextFactory.Create(Guid.NewGuid().ToString());
+
+        (_, ApplicationUserIdentity supplierUser, Supplier supplier, Rfq rfq, _, LineItem lineItem) =
+            await SeedQuoteScenarioAsync(context, DateTime.UtcNow.AddDays(3));
+
+        AuditLogService auditLogService = new(context);
+        QuoteSubmissionService service = new(context, auditLogService);
+
+        Quote quote = new()
+        {
+            Id = Guid.NewGuid(),
+            RfqId = rfq.Id,
+            SupplierId = supplier.Id,
+            Status = QuoteStatus.Submitted,
+            LeadTimeDays = 10,
+            ValidUntil = DateTime.UtcNow.AddDays(10),
+            PaymentTerms = "Net 30",
+            Notes = "Quality recalc test",
+            SubmittedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            LineItems =
+            [
+                new QuoteLineItem
+                {
+                    Id = Guid.NewGuid(),
+                    QuoteId = Guid.Empty, // reassigned after quote attach
+                    LineItemId = lineItem.Id,
+                    UnitPrice = 10m,
+                    TotalPrice = 20m,
+                    CreatedAt = DateTime.UtcNow
+                }
+            ]
+        };
+        quote.LineItems.First().QuoteId = quote.Id;
+        quote.CalculateTotalAmount();
+        await context.Quotes.AddAsync(quote);
+        await context.SaveChangesAsync();
+
+        int? initialScore = quote.SubmissionQualityScore;
+
+        await context.QuoteDocuments.AddAsync(new QuoteDocument
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quote.Id,
+            FileName = "proposal.pdf",
+            StoredFileName = "proposal.pdf",
+            ContentType = "application/pdf",
+            FileSize = 1024,
+            FilePath = "/api/v1/documents/quote/test",
+            DisplayOrder = 1,
+            UploadedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        await service.RecalculateQuoteQualitySnapshotAsync(supplierUser.Id, quote.Id);
+
+        Quote? refreshed = await context.Quotes.FirstOrDefaultAsync(q => q.Id == quote.Id);
+        List<QuoteQualityHistory> qualityHistory = await context.QuoteQualityHistory
+            .Where(h => h.QuoteId == quote.Id)
+            .OrderBy(h => h.ScoredAt)
+            .ToListAsync();
+        Assert.NotNull(refreshed);
+        Assert.True(refreshed!.SubmissionQualityScore > (initialScore ?? 0));
+        Assert.Equal(100, refreshed.SubmissionCommercialScore);
+        Assert.Single(qualityHistory);
+        Assert.Equal("Recalculated", qualityHistory[0].EventType);
     }
 
     private static async Task<(ApplicationUserIdentity Buyer, ApplicationUserIdentity SupplierUser, Supplier Supplier, Rfq Rfq, RfqInvitation Invitation, LineItem LineItem)>
