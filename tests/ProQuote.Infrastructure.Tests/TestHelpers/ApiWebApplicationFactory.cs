@@ -19,6 +19,8 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("JwtSettings__SecretKey", JwtSecret);
         Environment.SetEnvironmentVariable("JwtSettings__Issuer", "ProQuote.Tests");
         Environment.SetEnvironmentVariable("JwtSettings__Audience", "ProQuote.Tests.Client");
+        Environment.SetEnvironmentVariable("Database__Provider", "InMemory");
+        Environment.SetEnvironmentVariable("Database__InMemoryName", _databaseName);
 
         builder.UseEnvironment("Testing");
 
@@ -54,6 +56,8 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("JwtSettings__SecretKey", null);
         Environment.SetEnvironmentVariable("JwtSettings__Issuer", null);
         Environment.SetEnvironmentVariable("JwtSettings__Audience", null);
+        Environment.SetEnvironmentVariable("Database__Provider", null);
+        Environment.SetEnvironmentVariable("Database__InMemoryName", null);
 
         base.Dispose(disposing);
     }
