@@ -106,5 +106,32 @@ public class QuoteRepository : Repository<Quote>, IQuoteRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<QuoteDocument>> GetDocumentsAsync(Guid quoteId, CancellationToken cancellationToken = default)
+    {
+        return await Context.QuoteDocuments
+            .Where(d => d.QuoteId == quoteId)
+            .OrderBy(d => d.DisplayOrder)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<QuoteDocument?> GetDocumentByIdAsync(Guid documentId, CancellationToken cancellationToken = default)
+    {
+        return await Context.QuoteDocuments.FirstOrDefaultAsync(d => d.Id == documentId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task AddDocumentsAsync(IEnumerable<QuoteDocument> documents, CancellationToken cancellationToken = default)
+    {
+        await Context.QuoteDocuments.AddRangeAsync(documents, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public void RemoveDocument(QuoteDocument document)
+    {
+        Context.QuoteDocuments.Remove(document);
+    }
+
     #endregion
 }

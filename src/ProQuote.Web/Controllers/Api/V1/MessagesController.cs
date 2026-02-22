@@ -99,6 +99,11 @@ public class MessagesController : ApiControllerBase
             return Unauthorized();
         }
 
+        if (request == null)
+        {
+            return BadRequest(new { succeeded = false, error = "Request body is required." });
+        }
+
         if (request.RfqId == Guid.Empty)
         {
             return BadRequest(new { succeeded = false, error = "RFQ id is required." });

@@ -67,5 +67,35 @@ public interface IQuoteRepository : IRepository<Quote>
     /// <returns>A collection of quotes with line items.</returns>
     public Task<IReadOnlyList<Quote>> GetQuotesForComparisonAsync(Guid rfqId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets quote documents ordered by display order.
+    /// </summary>
+    /// <param name="quoteId">The quote identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of quote documents.</returns>
+    public Task<IReadOnlyList<QuoteDocument>> GetDocumentsAsync(Guid quoteId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets quote document by identifier.
+    /// </summary>
+    /// <param name="documentId">The quote document identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The quote document if found; otherwise, null.</returns>
+    public Task<QuoteDocument?> GetDocumentByIdAsync(Guid documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a collection of quote documents.
+    /// </summary>
+    /// <param name="documents">The quote documents.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public Task AddDocumentsAsync(IEnumerable<QuoteDocument> documents, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes a quote document.
+    /// </summary>
+    /// <param name="document">The quote document to remove.</param>
+    public void RemoveDocument(QuoteDocument document);
+
     #endregion
 }

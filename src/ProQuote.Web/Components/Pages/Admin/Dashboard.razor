@@ -2,6 +2,9 @@
 @rendermode InteractiveServer
 @layout AdminLayout
 @attribute [Authorize(Roles = ApplicationRoles.Admin)]
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using ProQuote.Infrastructure.Identity
 
 <PageTitle>Admin Dashboard - ProQuote</PageTitle>
 
@@ -38,6 +41,7 @@
     private List<Domain.Entities.Supplier> _pendingSuppliers = [];
 
     [Inject] private IUnitOfWork UnitOfWork { get; set; } = default!;
+    [Inject] private UserManager<ApplicationUserIdentity> UserManager { get; set; } = default!;
 
     protected override async Task OnInitializedAsync() => await LoadDashboardDataAsync();
 
@@ -48,13 +52,14 @@
 
         IReadOnlyList<Domain.Entities.Category> categories = await UnitOfWork.Categories.GetActiveCategoriesAsync();
         IReadOnlyList<Domain.Entities.Rfq> activeRfqs = await UnitOfWork.Rfqs.GetByStatusAsync(Domain.Enums.RfqStatus.Published);
+        int totalUsers = await UserManager.Users.CountAsync();
 
         _stats = new DashboardStats
         {
             PendingSuppliers = _pendingSuppliers.Count,
             TotalCategories = categories.Count,
             ActiveRfqs = activeRfqs.Count,
-            TotalUsers = 10
+            TotalUsers = totalUsers
         };
     }
 

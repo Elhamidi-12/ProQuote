@@ -34,6 +34,22 @@ dotnet build ProQuote.slnx
 dotnet run --project src/ProQuote.Web/ProQuote.Web.csproj
 ```
 
+### Required local secrets
+
+Configure a JWT signing key before running the web app:
+
+```powershell
+dotnet user-secrets init --project src/ProQuote.Web/ProQuote.Web.csproj
+dotnet user-secrets set "JwtSettings:SecretKey" "replace-with-a-long-random-secret-key-32chars-min" --project src/ProQuote.Web/ProQuote.Web.csproj
+```
+
+Optional (development only): seed an admin user by providing credentials:
+
+```powershell
+dotnet user-secrets set "Seed:AdminEmail" "admin@example.com" --project src/ProQuote.Web/ProQuote.Web.csproj
+dotnet user-secrets set "Seed:AdminPassword" "StrongAdminPassword!123" --project src/ProQuote.Web/ProQuote.Web.csproj
+```
+
 ## Configuration
 
 Main configuration file:

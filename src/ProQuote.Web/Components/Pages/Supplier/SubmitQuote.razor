@@ -5,10 +5,9 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.EntityFrameworkCore
 @using ProQuote.Application.DTOs.Quotes
 @inject IQuoteSubmissionService QuoteSubmissionService
-@inject ProQuote.Infrastructure.Data.AppDbContext DbContext
+@inject IUnitOfWork UnitOfWork
 @inject IWebHostEnvironment HostEnvironment
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
@@ -247,10 +246,7 @@ else
             return;
         }
 
-        _existingDocuments = await DbContext.QuoteDocuments
-            .Where(d => d.QuoteId == quoteId.Value)
-            .OrderBy(d => d.DisplayOrder)
-            .ToListAsync();
+        _existingDocuments = (await UnitOfWork.Quotes.GetDocumentsAsync(quoteId.Value)).ToList();
     }
 
     private async Task SaveQuoteAsync()
@@ -396,8 +392,8 @@ else
 
         if (newDocuments.Count > 0)
         {
-            await DbContext.QuoteDocuments.AddRangeAsync(newDocuments);
-            await DbContext.SaveChangesAsync();
+            await UnitOfWork.Quotes.AddDocumentsAsync(newDocuments);
+            await UnitOfWork.SaveChangesAsync();
             _existingDocuments.AddRange(newDocuments);
         }
 
@@ -406,14 +402,14 @@ else
 
     private async Task RemoveDocumentAsync(Guid documentId)
     {
-        Domain.Entities.QuoteDocument? existing = await DbContext.QuoteDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+        Domain.Entities.QuoteDocument? existing = await UnitOfWork.Quotes.GetDocumentByIdAsync(documentId);
         if (existing == null)
         {
             return;
         }
 
-        DbContext.QuoteDocuments.Remove(existing);
-        await DbContext.SaveChangesAsync();
+        UnitOfWork.Quotes.RemoveDocument(existing);
+        await UnitOfWork.SaveChangesAsync();
 
         string webRoot = string.IsNullOrWhiteSpace(HostEnvironment.WebRootPath)
             ? Path.Combine(HostEnvironment.ContentRootPath, "wwwroot")

@@ -106,6 +106,21 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<RfqDocument>> GetDocumentsAsync(Guid rfqId, CancellationToken cancellationToken = default)
+    {
+        return await Context.RfqDocuments
+            .Where(d => d.RfqId == rfqId)
+            .OrderBy(d => d.DisplayOrder)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<RfqDocument?> GetDocumentByIdAsync(Guid documentId, CancellationToken cancellationToken = default)
+    {
+        return await Context.RfqDocuments.FirstOrDefaultAsync(d => d.Id == documentId, cancellationToken);
+    }
+
     #endregion
 
     #region Reference Number Generation
@@ -134,6 +149,18 @@ public class RfqRepository : Repository<Rfq>, IRfqRepository
         }
 
         return $"{yearPrefix}{nextNumber:D5}";
+    }
+
+    /// <inheritdoc />
+    public async Task AddDocumentsAsync(IEnumerable<RfqDocument> documents, CancellationToken cancellationToken = default)
+    {
+        await Context.RfqDocuments.AddRangeAsync(documents, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public void RemoveDocument(RfqDocument document)
+    {
+        Context.RfqDocuments.Remove(document);
     }
 
     #endregion

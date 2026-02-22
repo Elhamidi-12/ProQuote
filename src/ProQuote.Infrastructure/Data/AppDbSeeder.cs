@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 using ProQuote.Domain.Entities;
@@ -18,6 +19,7 @@ public partial class AppDbSeeder
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUserIdentity> _userManager;
     private readonly RoleManager<ApplicationRoleIdentity> _roleManager;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AppDbSeeder> _logger;
 
     #endregion
@@ -30,16 +32,19 @@ public partial class AppDbSeeder
     /// <param name="context">The database context.</param>
     /// <param name="userManager">The user manager.</param>
     /// <param name="roleManager">The role manager.</param>
+    /// <param name="configuration">The application configuration.</param>
     /// <param name="logger">The logger.</param>
     public AppDbSeeder(
         AppDbContext context,
         UserManager<ApplicationUserIdentity> userManager,
         RoleManager<ApplicationRoleIdentity> roleManager,
+        IConfiguration configuration,
         ILogger<AppDbSeeder> logger)
     {
         _context = context;
         _userManager = userManager;
         _roleManager = roleManager;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -51,16 +56,24 @@ public partial class AppDbSeeder
     /// Seeds the database with initial data.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task SeedAsync()
+    public async Task SeedAsync(bool includeSampleData = false, bool includeDefaultAdmin = false)
     {
         try
         {
             await _context.Database.MigrateAsync();
 
             await SeedRolesAsync();
-            await SeedAdminUserAsync();
+            if (includeDefaultAdmin)
+            {
+                await SeedAdminUserAsync();
+            }
+
             await SeedCategoriesAsync();
-            await SeedSampleDataAsync();
+
+            if (includeSampleData)
+            {
+                await SeedSampleDataAsync();
+            }
 
             LogDatabaseSeedingCompleted(_logger);
         }
@@ -112,8 +125,14 @@ public partial class AppDbSeeder
     /// </summary>
     private async Task SeedAdminUserAsync()
     {
-        const string adminEmail = "admin@rfqapp.com";
-        const string adminPassword = "Admin@123456";
+        string? adminEmail = _configuration["Seed:AdminEmail"];
+        string? adminPassword = _configuration["Seed:AdminPassword"];
+
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+        {
+            LogAdminUserSeedSkipped(_logger);
+            return;
+        }
 
         ApplicationUserIdentity? existingAdmin = await _userManager.FindByEmailAsync(adminEmail);
 
@@ -398,6 +417,9 @@ public partial class AppDbSeeder
 
     [LoggerMessage(EventId = 1005, Level = LogLevel.Warning, Message = "Failed to create admin user: {Errors}")]
     private static partial void LogAdminUserCreationFailed(ILogger logger, string errors);
+
+    [LoggerMessage(EventId = 1010, Level = LogLevel.Information, Message = "Skipping admin user seed because Seed:AdminEmail/Seed:AdminPassword are not configured")]
+    private static partial void LogAdminUserSeedSkipped(ILogger logger);
 
     [LoggerMessage(EventId = 1006, Level = LogLevel.Information, Message = "Seeded {Count} categories")]
     private static partial void LogCategoriesSeeded(ILogger logger, int count);

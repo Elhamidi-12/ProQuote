@@ -66,6 +66,22 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <returns>A collection of expired RFQs.</returns>
     public Task<IReadOnlyList<Rfq>> GetExpiredRfqsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets RFQ documents ordered by display order.
+    /// </summary>
+    /// <param name="rfqId">The RFQ identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of RFQ documents.</returns>
+    public Task<IReadOnlyList<RfqDocument>> GetDocumentsAsync(Guid rfqId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets RFQ document by identifier.
+    /// </summary>
+    /// <param name="documentId">The document identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The RFQ document if found; otherwise, null.</returns>
+    public Task<RfqDocument?> GetDocumentByIdAsync(Guid documentId, CancellationToken cancellationToken = default);
+
     #endregion
 
     #region Reference Number Generation
@@ -76,6 +92,20 @@ public interface IRfqRepository : IRepository<Rfq>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The next reference number in format RFQ-YYYY-NNNNN.</returns>
     public Task<string> GenerateReferenceNumberAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a collection of RFQ documents.
+    /// </summary>
+    /// <param name="documents">The RFQ documents.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public Task AddDocumentsAsync(IEnumerable<RfqDocument> documents, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes an RFQ document.
+    /// </summary>
+    /// <param name="document">The document to remove.</param>
+    public void RemoveDocument(RfqDocument document);
 
     #endregion
 }
