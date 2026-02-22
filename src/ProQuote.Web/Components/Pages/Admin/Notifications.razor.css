@@ -51,50 +51,33 @@
 }
 
 .pq-notifications-toolbar {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.pq-notifications-toolbar__actions {
-    width: 100%;
     display: grid;
-    grid-template-columns: minmax(200px, 260px) auto auto;
-    gap: var(--pq-space-2);
+    grid-template-columns: minmax(200px, 260px) 1fr;
+    gap: var(--pq-space-3);
     align-items: end;
 }
 
-.pq-notifications-metrics {
+.pq-notifications-toolbar__filter {
+    min-width: 0;
+}
+
+.pq-notifications-toolbar__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--pq-space-2);
+}
+
+.pq-notifications-toolbar__actions .pq-button {
+    width: fit-content;
+    flex: 0 0 auto;
+}
+
+.pq-notifications-stats-grid {
     margin-top: var(--pq-space-3);
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--pq-space-2);
-}
-
-.pq-notifications-metric {
-    border: 1px solid var(--pq-color-border);
-    border-radius: var(--pq-radius-md);
-    padding: var(--pq-space-3);
-    background: color-mix(in srgb, var(--pq-color-surface, #fff) 85%, #e2e8f0 15%);
-}
-
-.pq-notifications-metric.is-unread {
-    border-color: color-mix(in srgb, var(--pq-color-primary) 45%, var(--pq-color-border) 55%);
-    background: color-mix(in srgb, var(--pq-color-primary) 8%, var(--pq-color-surface, #fff) 92%);
-}
-
-.pq-notifications-metric__label {
-    display: block;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.8;
-}
-
-.pq-notifications-metric__value {
-    display: block;
-    margin-top: 0.15rem;
-    font-size: 1.45rem;
-    font-weight: 700;
 }
 
 .pq-notifications-empty {
@@ -103,7 +86,7 @@
     place-items: center;
     text-align: center;
     gap: var(--pq-space-2);
-    color: var(--pq-color-text-muted);
+    color: var(--pq-text-muted);
 }
 
 .pq-notifications-empty i {
@@ -123,22 +106,22 @@
     display: grid;
     grid-template-columns: auto 1fr auto;
     gap: var(--pq-space-3);
-    border: 1px solid var(--pq-color-border);
+    border: 1px solid var(--pq-border);
     border-radius: var(--pq-radius-md);
     padding: var(--pq-space-3);
-    background: var(--pq-color-surface, #fff);
+    background: var(--pq-bg-surface);
     transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .pq-notification-item:hover {
-    border-color: color-mix(in srgb, var(--pq-color-primary) 35%, var(--pq-color-border) 65%);
+    border-color: color-mix(in srgb, var(--pq-primary-500) 35%, var(--pq-border) 65%);
     box-shadow: 0 10px 24px rgba(2, 8, 23, 0.08);
     transform: translateY(-1px);
 }
 
 .pq-notification-item.is-unread {
-    border-left: 4px solid var(--pq-color-primary);
-    background: color-mix(in srgb, var(--pq-color-primary) 4%, var(--pq-color-surface, #fff) 96%);
+    border-left: 4px solid var(--pq-primary-500);
+    background: color-mix(in srgb, var(--pq-primary-100) 24%, var(--pq-bg-surface));
 }
 
 .pq-notification-item__icon {
@@ -147,8 +130,8 @@
     border-radius: 999px;
     display: grid;
     place-items: center;
-    background: color-mix(in srgb, var(--pq-color-primary) 10%, var(--pq-color-surface, #fff) 90%);
-    color: var(--pq-color-primary);
+    background: color-mix(in srgb, var(--pq-primary-100) 42%, var(--pq-bg-surface));
+    color: var(--pq-primary-600);
 }
 
 .pq-notification-item__body {
@@ -163,13 +146,17 @@
     margin-bottom: var(--pq-space-1);
 }
 
+.pq-notification-item__header strong {
+    color: var(--pq-text-primary);
+}
+
 .pq-notification-item__meta {
     margin-top: var(--pq-space-2);
     display: flex;
     flex-wrap: wrap;
     gap: var(--pq-space-2);
     align-items: center;
-    color: var(--pq-color-text-muted);
+    color: var(--pq-text-muted);
     font-size: 0.82rem;
 }
 
@@ -181,12 +168,17 @@
 }
 
 @media (max-width: 980px) {
-    .pq-notifications-metrics {
+    .pq-notifications-stats-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .pq-notifications-toolbar__actions {
+    .pq-notifications-toolbar {
         grid-template-columns: 1fr;
+    }
+
+    .pq-notifications-toolbar__actions {
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 
     .pq-notification-item {
@@ -205,7 +197,7 @@
         flex-direction: column;
     }
 
-    .pq-notifications-metrics {
+    .pq-notifications-stats-grid {
         grid-template-columns: 1fr;
     }
 }

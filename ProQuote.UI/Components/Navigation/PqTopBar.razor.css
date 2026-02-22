@@ -1,12 +1,50 @@
-.pq-topbar { height: var(--pq-topbar-height); background: var(--pq-bg-surface); border-bottom: 1px solid var(--pq-border); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--pq-space-6); position: sticky; top: 0; z-index: var(--pq-z-sticky); }
-.pq-topbar__title { font-size: var(--pq-text-xl); font-weight: var(--pq-font-semibold); }
+.pq-topbar {
+  height: var(--pq-topbar-height);
+  background: color-mix(in srgb, var(--pq-bg-surface) 78%, rgba(255,255,255,0.3) 22%);
+  border-bottom: 1px solid color-mix(in srgb, var(--pq-border) 86%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--pq-space-6);
+  position: sticky;
+  top: 0;
+  z-index: var(--pq-z-sticky);
+  backdrop-filter: blur(10px);
+}
+.pq-topbar__title { font-family: var(--pq-font-display); font-size: var(--pq-text-xl); font-weight: var(--pq-font-semibold); letter-spacing: -0.012em; }
 .pq-topbar__right { display: flex; align-items: center; gap: var(--pq-space-3); position: relative; }
-.pq-topbar__icon-btn { border: 1px solid var(--pq-border); background: var(--pq-bg-surface); color: var(--pq-text-secondary); border-radius: var(--pq-radius-md); height: var(--pq-input-height-sm); min-width: var(--pq-input-height-sm); padding: 0 var(--pq-space-2); cursor: pointer; transition: background var(--pq-transition-fast), border-color var(--pq-transition-fast), color var(--pq-transition-fast); }
+.pq-topbar__icon-btn {
+  border: 1px solid color-mix(in srgb, var(--pq-border) 88%, transparent);
+  background: color-mix(in srgb, var(--pq-bg-surface) 88%, var(--pq-primary-50) 12%);
+  color: var(--pq-text-secondary);
+  border-radius: calc(var(--pq-radius-md) + 2px);
+  height: var(--pq-input-height-sm);
+  min-width: var(--pq-input-height-sm);
+  padding: 0 var(--pq-space-2);
+  cursor: pointer;
+  transition: background var(--pq-transition-fast), border-color var(--pq-transition-fast), color var(--pq-transition-fast), transform var(--pq-transition-fast);
+}
 .pq-topbar__icon-btn:hover,
-.pq-topbar__icon-btn:focus-visible { background: var(--pq-bg-surface-2); border-color: var(--pq-border-strong); color: var(--pq-text-primary); }
+.pq-topbar__icon-btn:focus-visible { background: var(--pq-bg-surface-2); border-color: var(--pq-border-strong); color: var(--pq-text-primary); transform: translateY(-1px); }
 .pq-topbar__icon-btn--notifications { position: relative; }
 .pq-topbar__icon-btn--notifications.is-open { border-color: color-mix(in srgb, var(--pq-primary-500) 50%, var(--pq-border)); color: var(--pq-primary-600); }
-.pq-topbar__count { position: absolute; top: -0.32rem; right: -0.32rem; min-width: 1.08rem; height: 1.08rem; padding: 0 0.2rem; border-radius: var(--pq-radius-full); background: #e5484d; color: #fff; font-size: 0.66rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.pq-topbar__count {
+  position: absolute;
+  top: -0.32rem;
+  right: -0.32rem;
+  min-width: 1.08rem;
+  height: 1.08rem;
+  padding: 0 0.2rem;
+  border-radius: var(--pq-radius-full);
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  box-shadow: 0 8px 15px rgba(225, 29, 72, 0.38);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .pq-topbar__avatar { display: flex; align-items: center; }
 
 .pq-topbar__notifications {
@@ -17,8 +55,8 @@
   max-height: 460px;
   border: 1px solid color-mix(in srgb, var(--pq-border) 78%, transparent);
   border-radius: var(--pq-radius-lg);
-  background: var(--pq-bg-surface);
-  box-shadow: 0 22px 40px rgba(20, 35, 66, 0.2);
+  background: color-mix(in srgb, var(--pq-bg-surface) 92%, #fff 8%);
+  box-shadow: 0 24px 42px rgba(20, 35, 66, 0.24);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -94,13 +132,9 @@
   cursor: pointer;
 }
 
-.pq-topbar__notification-item:hover {
-  background: color-mix(in srgb, #e4efff 40%, transparent);
-}
+.pq-topbar__notification-item:hover { background: color-mix(in srgb, #e4efff 42%, transparent); }
 
-.pq-topbar__notification-item.is-unread {
-  background: color-mix(in srgb, #ebf3ff 58%, transparent);
-}
+.pq-topbar__notification-item.is-unread { background: color-mix(in srgb, #ebf3ff 58%, transparent); }
 
 .pq-topbar__notification-icon {
   width: 30px;

@@ -2,6 +2,7 @@
 @using System
 @using System.Linq
 @using System.Security.Claims
+@using ProQuote.Web.Components.Pages
 @using ProQuote.Application.DTOs.Communication
 @using Microsoft.AspNetCore.Components.Authorization
 @using ProQuote.Infrastructure.Identity
@@ -40,6 +41,12 @@
                   OnThemeToggle="ThemeService.ToggleThemeAsync" />
         <section class="pq-shell__content">@Body</section>
     </main>
+    <PqModal @bind-IsOpen="_isProfileDialogOpen" Title="Profile" Size="xl">
+        <ProfileContent ShowPageTitle="false" @key="_profileDialogKey" />
+    </PqModal>
+    <PqModal @bind-IsOpen="_isSettingsDialogOpen" Title="Settings" Size="lg">
+        <SettingsContent ShowPageTitle="false" @key="_settingsDialogKey" />
+    </PqModal>
     <PqToastContainer />
 </div>
 
@@ -51,6 +58,10 @@
     private int _notificationCount;
     private bool _notificationsLoading;
     private List<TopBarNotificationItem> _notifications = [];
+    private bool _isProfileDialogOpen;
+    private bool _isSettingsDialogOpen;
+    private int _profileDialogKey;
+    private int _settingsDialogKey;
 
     private Task OnSidebarCollapsedChanged(bool isCollapsed)
     {
@@ -106,13 +117,19 @@
 
     private Task HandleProfileAsync()
     {
-        NavigationManager.NavigateTo(GetProfileRoute());
+        _settingsDialogKey++;
+        _isSettingsDialogOpen = false;
+        _profileDialogKey++;
+        _isProfileDialogOpen = true;
         return Task.CompletedTask;
     }
 
     private Task HandleSettingsAsync()
     {
-        NavigationManager.NavigateTo(GetSettingsRoute());
+        _profileDialogKey++;
+        _isProfileDialogOpen = false;
+        _settingsDialogKey++;
+        _isSettingsDialogOpen = true;
         return Task.CompletedTask;
     }
 
@@ -209,28 +226,6 @@
 
         _ = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
         await RefreshNotificationsAsync();
-    }
-
-    private string GetProfileRoute()
-    {
-        return _userRole switch
-        {
-            ApplicationRoles.Admin => "/admin/profile",
-            ApplicationRoles.Buyer => "/buyer/profile",
-            ApplicationRoles.Supplier => "/supplier/profile",
-        _ => "/profile"
-        };
-    }
-
-    private string GetSettingsRoute()
-    {
-        return _userRole switch
-        {
-            ApplicationRoles.Admin => "/admin/settings",
-            ApplicationRoles.Buyer => "/buyer/settings",
-            ApplicationRoles.Supplier => "/supplier/settings",
-            _ => "/settings"
-        };
     }
 
     private readonly List<PqSidebar.SidebarNavItem> _navItems =

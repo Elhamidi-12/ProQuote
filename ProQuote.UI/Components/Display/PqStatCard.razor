@@ -14,12 +14,12 @@
                     <div class="pq-stat-card__trend @TrendClass">@Trend</div>
                 }
             </div>
-            <div class="pq-stat-card__icon" style="--pq-stat-icon-color:@ResolvedIconColor;">
-                @if (!string.IsNullOrWhiteSpace(NormalizedIcon))
-                {
+            @if (!string.IsNullOrWhiteSpace(NormalizedIcon))
+            {
+                <div class="pq-stat-card__icon" style="--pq-stat-icon-color:@ResolvedIconColor;">
                     <i class="bi bi-@NormalizedIcon" aria-hidden="true"></i>
-                }
-            </div>
+                </div>
+            }
         </div>
     }
 </PqCard>

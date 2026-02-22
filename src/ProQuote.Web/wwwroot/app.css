@@ -39,11 +39,11 @@ h1:focus {
 
 /* Global modern table treatment for all role portals */
 .pq-table-wrap {
-    border: 1px solid color-mix(in srgb, var(--pq-border) 76%, transparent);
-    border-radius: var(--pq-radius-lg);
+    border: 1px solid color-mix(in srgb, var(--pq-border) 78%, transparent);
+    border-radius: var(--pq-radius-xl);
     overflow: auto;
-    background: color-mix(in srgb, var(--pq-surface) 88%, #fff);
-    box-shadow: 0 10px 22px rgba(18, 38, 78, 0.06);
+    background: var(--pq-bg-surface);
+    box-shadow: var(--pq-shadow-sm);
 }
 
 .pq-table {
@@ -56,11 +56,11 @@ h1:focus {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: linear-gradient(180deg, #f4f7fc, #edf2f9);
-    color: #6d84a6;
+    background: var(--pq-bg-surface-2);
+    color: var(--pq-text-muted);
     border-bottom: 1px solid color-mix(in srgb, var(--pq-border) 72%, transparent);
     font-size: 0.75rem;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     padding: 0.82rem 0.78rem;
     line-height: 1.1;
     white-space: nowrap;
@@ -74,11 +74,11 @@ h1:focus {
 }
 
 .pq-table tbody tr:nth-child(odd) {
-    background: color-mix(in srgb, #f5f9ff 55%, transparent);
+    background: color-mix(in srgb, var(--pq-bg-surface-2) 70%, transparent);
 }
 
 .pq-table tbody tr:hover {
-    background: color-mix(in srgb, #deebff 48%, transparent);
+    background: color-mix(in srgb, var(--pq-primary-100) 42%, transparent);
 }
 
 .pq-table tbody tr:last-child td {
@@ -89,5 +89,60 @@ h1:focus {
     .pq-table th,
     .pq-table td {
         padding: 0.68rem 0.62rem;
+    }
+}
+
+.pq-page-filters {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.85fr) minmax(180px, 0.85fr) auto;
+    align-items: end;
+    gap: var(--pq-space-3);
+}
+
+.pq-page-filters--two-fields {
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+}
+
+.pq-page-filters__field {
+    min-width: 0;
+}
+
+.pq-page-filters__actions {
+    display: inline-flex;
+    justify-self: end;
+    align-items: center;
+    gap: var(--pq-space-2);
+    padding-bottom: 1px;
+}
+
+.pq-page-filters__actions .pq-button {
+    min-width: 88px;
+}
+
+@media (max-width: 1080px) {
+    .pq-page-filters,
+    .pq-page-filters--two-fields {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .pq-page-filters__actions {
+        justify-self: start;
+        padding-bottom: 0;
+    }
+}
+
+.pq-card {
+    animation: pq-fade-up 360ms ease both;
+}
+
+@keyframes pq-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

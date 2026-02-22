@@ -1,6 +1,13 @@
 .pq-stat-card { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pq-space-4); }
 .pq-stat-card__title { font-size: var(--pq-text-sm); color: var(--pq-text-secondary); }
-.pq-stat-card__value { font-size: var(--pq-text-4xl); font-weight: var(--pq-font-bold); color: var(--pq-text-primary); line-height: var(--pq-leading-tight); }
+.pq-stat-card__value {
+  font-family: var(--pq-font-display);
+  font-size: clamp(1.7rem, 1.2rem + 1vw, var(--pq-text-4xl));
+  font-weight: var(--pq-font-bold);
+  color: var(--pq-text-primary);
+  line-height: var(--pq-leading-tight);
+  letter-spacing: -0.02em;
+}
 .pq-stat-card__trend { font-size: var(--pq-text-xs); }
 .pq-stat-card__trend--up { color: var(--pq-success-text); }
 .pq-stat-card__trend--down { color: var(--pq-danger-text); }
@@ -8,8 +15,9 @@
 .pq-stat-card__icon {
   width: var(--pq-space-12);
   height: var(--pq-space-12);
-  border-radius: var(--pq-radius-lg);
-  background: color-mix(in srgb, var(--pq-stat-icon-color) 15%, transparent);
+  border-radius: calc(var(--pq-radius-lg) + 2px);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--pq-stat-icon-color) 18%, #fff), color-mix(in srgb, var(--pq-stat-icon-color) 9%, transparent));
+  border: 1px solid color-mix(in srgb, var(--pq-stat-icon-color) 28%, transparent);
   color: var(--pq-stat-icon-color);
   display: inline-flex;
   align-items: center;

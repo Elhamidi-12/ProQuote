@@ -1,8 +1,42 @@
-.pq-table { width: 100%; border-collapse: collapse; }
-.pq-table th { background: var(--pq-bg-surface-2); padding: var(--pq-space-3) var(--pq-space-4); font-size: var(--pq-text-xs); font-weight: var(--pq-font-semibold); color: var(--pq-text-muted); text-transform: uppercase; letter-spacing: var(--pq-tracking-wider); border-bottom: 1px solid var(--pq-border); white-space: nowrap; }
-.pq-table td { height: var(--pq-table-row-height); padding: var(--pq-space-3) var(--pq-space-4); font-size: var(--pq-text-sm); color: var(--pq-text-primary); border-bottom: 1px solid var(--pq-border); }
-.pq-table--hoverable tbody tr:hover { background: var(--pq-bg-surface-2); }
-.pq-table--striped tbody tr:nth-child(odd) { background: var(--pq-bg-surface-2); }
+.pq-table-wrap {
+  border: 1px solid color-mix(in srgb, var(--pq-border) 80%, transparent);
+  border-radius: var(--pq-radius-lg);
+  overflow: auto;
+  background: var(--pq-bg-surface);
+  box-shadow: var(--pq-shadow-sm);
+}
+
+.pq-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.pq-table th {
+  background: var(--pq-bg-surface-2);
+  padding: var(--pq-space-3) var(--pq-space-4);
+  font-size: var(--pq-text-xs);
+  font-weight: var(--pq-font-semibold);
+  color: var(--pq-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid color-mix(in srgb, var(--pq-border) 78%, transparent);
+  white-space: nowrap;
+}
+.pq-table td {
+  height: var(--pq-table-row-height);
+  padding: var(--pq-space-3) var(--pq-space-4);
+  font-size: var(--pq-text-sm);
+  color: var(--pq-text-primary);
+  border-bottom: 1px solid color-mix(in srgb, var(--pq-border) 72%, transparent);
+  background: transparent;
+}
+.pq-table--hoverable tbody tr:hover td {
+  background: color-mix(in srgb, var(--pq-primary-100) 36%, var(--pq-bg-surface));
+}
+.pq-table--striped tbody tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--pq-bg-surface-2) 70%, transparent);
+}
 .pq-table__th--sortable { cursor: pointer; }
 .pq-table__sort { color: var(--pq-primary-600); margin-left: var(--pq-space-1); }
 .pq-table__empty { text-align: center; color: var(--pq-text-secondary); }

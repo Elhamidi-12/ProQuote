@@ -25,33 +25,23 @@
 
     <PqCard>
         <div class="pq-notifications-toolbar">
-            <div class="pq-notifications-toolbar__actions">
+            <div class="pq-notifications-toolbar__filter">
                 <PqSelect Label="Filter"
                           Value="@_filter"
                           ValueChanged="OnFilterChangedAsync"
                           Options="_filterOptions" />
+            </div>
+            <div class="pq-notifications-toolbar__actions">
                 <PqButton Variant="secondary" OnClick="LoadNotificationsAsync" Loading="_isLoading">Refresh</PqButton>
                 <PqButton Variant="ghost" OnClick="MarkAllAsReadAsync" Disabled="@(_isLoading || _unreadCount == 0)">Mark All Read</PqButton>
             </div>
         </div>
 
-        <div class="pq-notifications-metrics">
-            <article class="pq-notifications-metric is-unread">
-                <span class="pq-notifications-metric__label">Unread</span>
-                <strong class="pq-notifications-metric__value">@_unreadCount</strong>
-            </article>
-            <article class="pq-notifications-metric">
-                <span class="pq-notifications-metric__label">Read</span>
-                <strong class="pq-notifications-metric__value">@ReadCount</strong>
-            </article>
-            <article class="pq-notifications-metric">
-                <span class="pq-notifications-metric__label">Total</span>
-                <strong class="pq-notifications-metric__value">@_notifications.Count</strong>
-            </article>
-            <article class="pq-notifications-metric">
-                <span class="pq-notifications-metric__label">Completion</span>
-                <strong class="pq-notifications-metric__value">@ReadRateLabel</strong>
-            </article>
+        <div class="pq-notifications-stats-grid">
+            <PqStatCard Title="Unread" Value="@_unreadCount.ToString()" />
+            <PqStatCard Title="Read" Value="@ReadCount.ToString()" />
+            <PqStatCard Title="Total" Value="@_notifications.Count.ToString()" />
+            <PqStatCard Title="Completion" Value="@ReadRateLabel" />
         </div>
     </PqCard>
 

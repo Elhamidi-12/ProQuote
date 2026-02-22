@@ -15,15 +15,15 @@
 
 <h1 class="pq-section-title">All Users</h1>
 <PqCard>
-    <div class="pq-flex pq-gap-2 pq-items-end" style="flex-wrap:wrap;">
-        <div style="min-width:250px;flex:1;">
+    <div class="pq-page-filters">
+        <div class="pq-page-filters__field">
             <PqInput Label="Search"
                      Value="@_searchTerm"
                      ValueChanged="@(v => _searchTerm = v ?? string.Empty)"
                      Placeholder="Name, email, or username..."
                      Disabled="_isLoading" />
         </div>
-        <div style="min-width:180px;flex:1;">
+        <div class="pq-page-filters__field">
             <PqSelect Label="Role"
                       Value="@_roleFilter"
                       ValueChanged="@(v => _roleFilter = v ?? string.Empty)"
@@ -31,7 +31,7 @@
                       Placeholder="All roles"
                       Disabled="_isLoading" />
         </div>
-        <div style="min-width:180px;flex:1;">
+        <div class="pq-page-filters__field">
             <PqSelect Label="Status"
                       Value="@_statusFilter"
                       ValueChanged="@(v => _statusFilter = v ?? string.Empty)"
@@ -39,8 +39,10 @@
                       Placeholder="All statuses"
                       Disabled="_isLoading" />
         </div>
-        <PqButton Variant="secondary" OnClick="LoadAsync" Loading="_isLoading">Apply</PqButton>
-        <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
+        <div class="pq-page-filters__actions">
+            <PqButton Variant="secondary" OnClick="LoadAsync" Loading="_isLoading">Apply</PqButton>
+            <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
+        </div>
     </div>
 
     @if (_isLoading)

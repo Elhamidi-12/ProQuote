@@ -6,7 +6,10 @@
 @inject CustomAuthStateProvider CustomAuthStateProvider
 @inject ToastService ToastService
 
-<h1 class="pq-section-title">Settings</h1>
+@if (ShowPageTitle)
+{
+    <h1 class="pq-section-title">Settings</h1>
+}
 
 @if (_isLoading)
 {
@@ -47,6 +50,8 @@ else
 }
 
 @code {
+    [Parameter] public bool ShowPageTitle { get; set; } = true;
+
     private UpdateUserSettingsRequest _settings = new();
     private bool _isLoading = true;
     private bool _isSaving;

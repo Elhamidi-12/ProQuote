@@ -8,15 +8,15 @@
 
 <h1 class="pq-section-title">@Title</h1>
 <PqCard>
-    <div class="rfq-list__filters">
-        <div class="rfq-list__filter-field">
+    <div class="pq-page-filters pq-page-filters--two-fields">
+        <div class="pq-page-filters__field">
             <PqInput Label="Search"
                      Value="@_searchTerm"
                      ValueChanged="OnSearchChangedAsync"
                      Placeholder="Reference or title..."
                      Disabled="_isLoading" />
         </div>
-        <div class="rfq-list__filter-field">
+        <div class="pq-page-filters__field">
             <PqSelect Label="Status"
                       Value="@_statusFilter"
                       ValueChanged="OnStatusChangedAsync"
@@ -24,7 +24,7 @@
                       Placeholder="All statuses"
                       Disabled="_isLoading" />
         </div>
-        <div class="rfq-list__filter-actions">
+        <div class="pq-page-filters__actions">
             <PqButton Variant="ghost" OnClick="ResetAsync" Disabled="_isLoading">Reset</PqButton>
         </div>
     </div>

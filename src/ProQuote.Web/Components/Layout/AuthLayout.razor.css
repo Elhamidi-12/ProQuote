@@ -4,7 +4,10 @@
   align-items: center;
   justify-content: center;
   padding: clamp(1rem, 3vw, 2.25rem);
-  background: #e8edf5;
+  background:
+    radial-gradient(900px 480px at -8% -6%, rgba(31, 134, 255, 0.2), transparent 55%),
+    radial-gradient(760px 380px at 106% 4%, rgba(14, 165, 233, 0.16), transparent 50%),
+    #e8edf5;
 }
 .pq-auth-layout__card {
   width: min(100%, 1140px);

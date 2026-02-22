@@ -12,15 +12,15 @@
 
 <h1 class="pq-section-title">Suppliers</h1>
 <PqCard>
-    <div class="pq-flex pq-gap-2 pq-items-end" style="flex-wrap:wrap;">
-        <div style="min-width:220px;flex:1;">
+    <div class="pq-page-filters pq-page-filters--two-fields">
+        <div class="pq-page-filters__field">
             <PqInput Label="Search"
                      Value="@_searchTerm"
                      ValueChanged="@(v => _searchTerm = v ?? string.Empty)"
                      Placeholder="Company, contact, or email..."
                      Disabled="_isLoading" />
         </div>
-        <div style="min-width:220px;flex:1;">
+        <div class="pq-page-filters__field">
             <PqSelect Label="Category"
                       Value="@_selectedCategoryId"
                       ValueChanged="OnCategoryChangedAsync"
@@ -28,8 +28,10 @@
                       Placeholder="All categories"
                       Disabled="_isLoading" />
         </div>
-        <PqButton Variant="secondary" OnClick="LoadSuppliersAsync" Loading="_isLoading">Apply</PqButton>
-        <PqButton Variant="ghost" OnClick="ResetFiltersAsync" Disabled="_isLoading">Reset</PqButton>
+        <div class="pq-page-filters__actions">
+            <PqButton Variant="secondary" OnClick="LoadSuppliersAsync" Loading="_isLoading">Apply</PqButton>
+            <PqButton Variant="ghost" OnClick="ResetFiltersAsync" Disabled="_isLoading">Reset</PqButton>
+        </div>
     </div>
 
     @if (_rfqId.HasValue)

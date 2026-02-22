@@ -1,9 +1,10 @@
 .pq-card {
   background: var(--pq-bg-surface);
   border-radius: var(--pq-radius-xl);
-  transition: all var(--pq-transition-base);
+  transition: transform var(--pq-transition-base), box-shadow var(--pq-transition-base), border-color var(--pq-transition-base), background var(--pq-transition-base);
+  backdrop-filter: blur(8px);
 }
-.pq-card--bordered { border: 1px solid var(--pq-border); }
+.pq-card--bordered { border: 1px solid color-mix(in srgb, var(--pq-border) 86%, transparent); }
 .pq-card--padding-none { padding: var(--pq-space-0); }
 .pq-card--padding-sm { padding: var(--pq-space-4); }
 .pq-card--padding-md { padding: var(--pq-space-5) var(--pq-space-6); }
@@ -12,4 +13,8 @@
 .pq-card--shadow-sm { box-shadow: var(--pq-shadow-sm); }
 .pq-card--shadow-md { box-shadow: var(--pq-shadow-md); }
 .pq-card--shadow-lg { box-shadow: var(--pq-shadow-lg); }
-.pq-card--hoverable:hover { transform: translateY(calc(var(--pq-space-1) * -0.5)); box-shadow: var(--pq-shadow-md); }
+.pq-card--hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pq-shadow-lg);
+  border-color: color-mix(in srgb, var(--pq-primary-400) 35%, var(--pq-border));
+}

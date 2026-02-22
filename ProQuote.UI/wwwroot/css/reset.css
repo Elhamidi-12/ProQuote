@@ -1,4 +1,4 @@
-@import url(''https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
@@ -8,7 +8,11 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-family: var(--pq-font-family);
-  background: var(--pq-bg-page);
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 500px at -8% -12%, rgba(31, 134, 255, 0.18), transparent 52%),
+    radial-gradient(900px 460px at 102% -4%, rgba(14, 165, 233, 0.12), transparent 46%),
+    var(--pq-bg-page);
   color: var(--pq-text-primary);
 }
 img, picture, video, canvas { display: block; max-width: 100%; }
