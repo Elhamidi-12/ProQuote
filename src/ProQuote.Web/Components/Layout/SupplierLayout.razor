@@ -4,6 +4,8 @@
 @using System.Security.Claims
 @using ProQuote.Web.Components.Pages
 @using ProQuote.Application.DTOs.Communication
+@using ProQuote.Application.UseCases.Notifications.MarkAllNotificationsAsRead
+@using ProQuote.Application.UseCases.Notifications.MarkNotificationAsRead
 @using Microsoft.AspNetCore.Components.Authorization
 @using ProQuote.Infrastructure.Identity
 @using ProQuote.Web.Auth
@@ -12,6 +14,8 @@
 @inject NavigationManager NavigationManager
 @inject CustomAuthStateProvider AuthStateProvider
 @inject ICommunicationService CommunicationService
+@inject IMarkNotificationAsReadUseCase MarkNotificationAsReadUseCase
+@inject IMarkAllNotificationsAsReadUseCase MarkAllNotificationsAsReadUseCase
 @inject ToastService ToastService
 @inject PostLoginNotificationStore PostLoginNotificationStore
 
@@ -207,7 +211,8 @@
 
         if (!notification.IsRead)
         {
-            _ = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notification.Id);
+            _ = await MarkNotificationAsReadUseCase.ExecuteAsync(
+                new MarkNotificationAsReadCommand(_currentUserId.Value, notification.Id));
             await RefreshNotificationsAsync();
         }
 
@@ -224,7 +229,8 @@
             return;
         }
 
-        _ = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
+        _ = await MarkAllNotificationsAsReadUseCase.ExecuteAsync(
+            new MarkAllNotificationsAsReadCommand(_currentUserId.Value));
         await RefreshNotificationsAsync();
     }
 

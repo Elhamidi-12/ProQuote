@@ -4,7 +4,11 @@
 @attribute [Authorize(Roles = ApplicationRoles.Buyer)]
 @using System.Security.Claims
 @using ProQuote.Application.DTOs.Communication
+@using ProQuote.Application.UseCases.Notifications.MarkAllNotificationsAsRead
+@using ProQuote.Application.UseCases.Notifications.MarkNotificationAsRead
 @inject ICommunicationService CommunicationService
+@inject IMarkNotificationAsReadUseCase MarkNotificationAsReadUseCase
+@inject IMarkAllNotificationsAsReadUseCase MarkAllNotificationsAsReadUseCase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
@@ -161,8 +165,9 @@
             return;
         }
 
-        bool marked = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notificationId);
-        if (marked)
+        MarkNotificationAsReadResponse response = await MarkNotificationAsReadUseCase.ExecuteAsync(
+            new MarkNotificationAsReadCommand(_currentUserId.Value, notificationId));
+        if (response.Succeeded)
         {
             await LoadNotificationsAsync();
         }
@@ -175,8 +180,9 @@
             return;
         }
 
-        int updated = await CommunicationService.MarkAllNotificationsAsReadAsync(_currentUserId.Value);
-        if (updated > 0)
+        MarkAllNotificationsAsReadResponse response = await MarkAllNotificationsAsReadUseCase.ExecuteAsync(
+            new MarkAllNotificationsAsReadCommand(_currentUserId.Value));
+        if (response.UpdatedCount > 0)
         {
             ToastService.ShowSuccess("Notifications marked as read.");
             await LoadNotificationsAsync();
@@ -192,7 +198,8 @@
 
         if (!notification.IsRead)
         {
-            _ = await CommunicationService.MarkNotificationAsReadAsync(_currentUserId.Value, notification.Id);
+            _ = await MarkNotificationAsReadUseCase.ExecuteAsync(
+                new MarkNotificationAsReadCommand(_currentUserId.Value, notification.Id));
         }
 
         if (!string.IsNullOrWhiteSpace(notification.ActionUrl))

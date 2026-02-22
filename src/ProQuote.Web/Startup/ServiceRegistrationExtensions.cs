@@ -13,6 +13,8 @@ using ProQuote.Application.UseCases.AdminSuppliers.ReviewSupplier;
 using ProQuote.Application.UseCases.BuyerRfqs.AwardQuote;
 using ProQuote.Application.UseCases.BuyerRfqs.Invitations;
 using ProQuote.Application.UseCases.BuyerRfqs.PublishRfq;
+using ProQuote.Application.UseCases.Notifications.MarkAllNotificationsAsRead;
+using ProQuote.Application.UseCases.Notifications.MarkNotificationAsRead;
 using ProQuote.Infrastructure;
 using ProQuote.UI.Services;
 using ProQuote.Web.Auth;
@@ -43,6 +45,8 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IAwardBuyerQuoteUseCase, AwardBuyerQuoteUseCase>();
         services.AddScoped<IPublishBuyerRfqUseCase, PublishBuyerRfqUseCase>();
         services.AddScoped<ISendRfqInvitationsUseCase, SendRfqInvitationsUseCase>();
+        services.AddScoped<IMarkNotificationAsReadUseCase, MarkNotificationAsReadUseCase>();
+        services.AddScoped<IMarkAllNotificationsAsReadUseCase, MarkAllNotificationsAsReadUseCase>();
 
         services.AddScoped<CustomAuthStateProvider>();
         services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());

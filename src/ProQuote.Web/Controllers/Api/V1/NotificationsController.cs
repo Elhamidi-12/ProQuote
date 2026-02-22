@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 
 using ProQuote.Application.DTOs.Communication;
 using ProQuote.Application.Interfaces;
+using ProQuote.Application.UseCases.Notifications.MarkAllNotificationsAsRead;
+using ProQuote.Application.UseCases.Notifications.MarkNotificationAsRead;
 using ProQuote.Infrastructure.Identity;
 
 namespace ProQuote.Web.Controllers.Api.V1;
@@ -16,14 +18,23 @@ namespace ProQuote.Web.Controllers.Api.V1;
 public class NotificationsController : ApiControllerBase
 {
     private readonly ICommunicationService _communicationService;
+    private readonly IMarkNotificationAsReadUseCase _markNotificationAsReadUseCase;
+    private readonly IMarkAllNotificationsAsReadUseCase _markAllNotificationsAsReadUseCase;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationsController"/> class.
     /// </summary>
     /// <param name="communicationService">Communication service.</param>
-    public NotificationsController(ICommunicationService communicationService)
+    /// <param name="markNotificationAsReadUseCase">Mark single notification as read use-case.</param>
+    /// <param name="markAllNotificationsAsReadUseCase">Mark all notifications as read use-case.</param>
+    public NotificationsController(
+        ICommunicationService communicationService,
+        IMarkNotificationAsReadUseCase markNotificationAsReadUseCase,
+        IMarkAllNotificationsAsReadUseCase markAllNotificationsAsReadUseCase)
     {
         _communicationService = communicationService;
+        _markNotificationAsReadUseCase = markNotificationAsReadUseCase;
+        _markAllNotificationsAsReadUseCase = markAllNotificationsAsReadUseCase;
     }
 
     /// <summary>
@@ -64,8 +75,12 @@ public class NotificationsController : ApiControllerBase
             return Unauthorized();
         }
 
-        bool updated = await _communicationService.MarkNotificationAsReadAsync(CurrentUserId.Value, id);
-        return updated ? Ok(new { succeeded = true }) : NotFound(new { succeeded = false });
+        MarkNotificationAsReadResponse response = await _markNotificationAsReadUseCase.ExecuteAsync(
+            new MarkNotificationAsReadCommand(CurrentUserId.Value, id));
+
+        return response.Succeeded
+            ? Ok(new { succeeded = true })
+            : NotFound(new { succeeded = false });
     }
 
     /// <summary>
@@ -80,7 +95,9 @@ public class NotificationsController : ApiControllerBase
             return Unauthorized();
         }
 
-        int updated = await _communicationService.MarkAllNotificationsAsReadAsync(CurrentUserId.Value);
-        return Ok(new { succeeded = true, updated });
+        MarkAllNotificationsAsReadResponse response = await _markAllNotificationsAsReadUseCase.ExecuteAsync(
+            new MarkAllNotificationsAsReadCommand(CurrentUserId.Value));
+
+        return Ok(new { succeeded = response.Succeeded, updated = response.UpdatedCount });
     }
 }

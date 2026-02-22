@@ -63,10 +63,12 @@
 - Introduced `Cancel RFQ (Admin)` as an application use-case:
   - Centralized cancellation rules and reason assignment.
   - Admin RFQ list page now delegates cancel action to the use-case.
+- Introduced `Mark Notifications as Read` as application use-cases:
+  - Added explicit use-cases for marking a single notification and marking all notifications as read.
+  - Notification API endpoints and all role layouts/pages now delegate write operations to these use-cases.
 
 This is the baseline pattern for future workflows:
-
-- `Mark Notifications as Read`
+- Add new workflows as explicit command/use-case pairs before wiring UI or controllers.
 
 ## Next Recommended Steps
 
