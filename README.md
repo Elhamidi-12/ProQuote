@@ -2,6 +2,22 @@
 
 ProQuote is a role-based RFQ (Request for Quotation) management platform built with .NET and Blazor.
 
+## License and Usage
+
+This project is proprietary source-available software, not open source.
+
+- Copyright (c) 2026 youne
+- License: See [LICENSE](./LICENSE)
+- Permissions must be requested at: youne@example.com
+
+Without prior written permission, you may not:
+
+- Copy, redistribute, or republish this software outside platform-limited access.
+- Modify, adapt, or create derivative works.
+- Use this software for commercial purposes (including resale, hosted offerings, or sublicensing).
+
+GitHub may still allow technical actions (such as viewing/forking) under its Terms of Service, but that does not grant a separate commercial or derivative-use license from the copyright holder.
+
 ## Tech Stack
 
 - .NET 10
