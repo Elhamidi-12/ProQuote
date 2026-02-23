@@ -8,7 +8,6 @@ This project is proprietary source-available software, not open source.
 
 - Copyright (c) 2026 youne
 - License: See [LICENSE](./LICENSE)
-- Permissions must be requested at: youne@example.com
 
 Without prior written permission, you may not:
 
